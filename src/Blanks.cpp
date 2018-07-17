@@ -73,6 +73,48 @@ struct Blank3 : ModuleWidget {
 	}
 };
 
+struct Blank4 : ModuleWidget {
+	Blank4(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank4.svg")));
+		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
+		bmp->path = assetPlugin(plugin, "res/Blank4.png");
+		addChild(bmp);
+	}
+};
+
+struct Blank5 : ModuleWidget {
+	Blank5(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank5.svg")));
+		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
+		bmp->path = assetPlugin(plugin, "res/Blank5.png");
+		addChild(bmp);
+	}
+};
+
+struct Blank6 : ModuleWidget {
+	Blank6(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank6.svg")));
+		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
+		bmp->path = assetPlugin(plugin, "res/Blank6.png");
+		addChild(bmp);
+	}
+};
+
 Model *modelBlank1 = Model::create<Module, Blank1>("OC_Blanks", "Blank1", "Blanking Plate Number 1", BLANK_TAG);
 Model *modelBlank2 = Model::create<Module, Blank2>("OC_Blanks", "Blank2", "Blanking Plate Number 2", BLANK_TAG);
 Model *modelBlank3 = Model::create<Module, Blank3>("OC_Blanks", "Blank3", "Blanking Plate Number 3", BLANK_TAG);
+Model *modelBlank4 = Model::create<Module, Blank4>("OC_Blanks", "Blank4", "Blanking Plate Number 4", BLANK_TAG);
+Model *modelBlank5 = Model::create<Module, Blank5>("OC_Blanks", "Blank5", "Blanking Plate Number 5", BLANK_TAG);
+Model *modelBlank6 = Model::create<Module, Blank6>("OC_Blanks", "Blank6", "Blanking Plate Number 6", BLANK_TAG);

@@ -9,3 +9,6 @@ extern Plugin *plugin;
 extern Model *modelBlank1;
 extern Model *modelBlank2;
 extern Model *modelBlank3;
+extern Model *modelBlank4;
+extern Model *modelBlank5;
+extern Model *modelBlank6;

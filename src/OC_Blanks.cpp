@@ -13,6 +13,9 @@ void init(rack::Plugin *p) {
 	p->addModel(modelBlank1);
 	p->addModel(modelBlank2);
 	p->addModel(modelBlank3);
+	p->addModel(modelBlank4);
+	p->addModel(modelBlank5);
+	p->addModel(modelBlank6);
 
 	// Any other plugin initialization may go here.
 	// As an alternative, consider lazy-loading assets and lookup tables when your module is created to reduce startup times of Rack.
