@@ -1,4 +1,4 @@
-#include "OC_Blanks.hpp"
+#include "ModularFungi.hpp"
 
 struct BitMap : TransparentWidget {
 	std::string path;
@@ -34,87 +34,87 @@ struct BitMap : TransparentWidget {
 	}
 };
 
-struct Blank1 : ModuleWidget {
-	Blank1(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank1.svg")));
+struct Blank_3HP : ModuleWidget {
+	Blank_3HP(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_3HP.svg")));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank1.png");
+		bmp->path = assetPlugin(plugin, "res/Blank_3HP.png");
 		addChild(bmp);
 	}
 };
 
-struct Blank2 : ModuleWidget {
-	Blank2(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank2.svg")));
+struct Blank_6HP : ModuleWidget {
+	Blank_6HP(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_6HP.svg")));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank2.png");
+		bmp->path = assetPlugin(plugin, "res/Blank_6HP.png");
 		addChild(bmp);
 	}
 };
 
-struct Blank3 : ModuleWidget {
-	Blank3(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank3.svg")));
+struct Blank_10HP : ModuleWidget {
+	Blank_10HP(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_10HP.svg")));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank3.png");
+		bmp->path = assetPlugin(plugin, "res/Blank_10HP.png");
 		addChild(bmp);
 	}
 };
 
-struct Blank4 : ModuleWidget {
-	Blank4(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank4.svg")));
+struct Blank_16HP : ModuleWidget {
+	Blank_16HP(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_16HP.svg")));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank4.png");
+		bmp->path = assetPlugin(plugin, "res/Blank_16HP.png");
 		addChild(bmp);
 	}
 };
 
-struct Blank5 : ModuleWidget {
-	Blank5(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank5.svg")));
+struct Blank_20HP : ModuleWidget {
+	Blank_20HP(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_20HP.svg")));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank5.png");
+		bmp->path = assetPlugin(plugin, "res/Blank_20HP.png");
 		addChild(bmp);
 	}
 };
 
-struct Blank6 : ModuleWidget {
-	Blank6(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank6.svg")));
+struct Blank_32HP : ModuleWidget {
+	Blank_32HP(Module *module) : ModuleWidget(module) {
+		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_32HP.svg")));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
 		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank6.png");
+		bmp->path = assetPlugin(plugin, "res/Blank_32HP.png");
 		addChild(bmp);
 	}
 };
 
-Model *modelBlank1 = Model::create<Module, Blank1>("OC_Blanks", "Blank1", "Blanking Plate Number 1", BLANK_TAG);
-Model *modelBlank2 = Model::create<Module, Blank2>("OC_Blanks", "Blank2", "Blanking Plate Number 2", BLANK_TAG);
-Model *modelBlank3 = Model::create<Module, Blank3>("OC_Blanks", "Blank3", "Blanking Plate Number 3", BLANK_TAG);
-Model *modelBlank4 = Model::create<Module, Blank4>("OC_Blanks", "Blank4", "Blanking Plate Number 4", BLANK_TAG);
-Model *modelBlank5 = Model::create<Module, Blank5>("OC_Blanks", "Blank5", "Blanking Plate Number 5", BLANK_TAG);
-Model *modelBlank6 = Model::create<Module, Blank6>("OC_Blanks", "Blank6", "Blanking Plate Number 6", BLANK_TAG);
+Model *modelBlank_3HP = Model::create<Module, Blank_3HP>("ModularFungi", "Blank_3HP", "3HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_6HP = Model::create<Module, Blank_6HP>("ModularFungi", "Blank_6HP", "6HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_10HP = Model::create<Module, Blank_10HP>("ModularFungi", "Blank_10HP", "10HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_16HP = Model::create<Module, Blank_16HP>("ModularFungi", "Blank_16HP", "16HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_20HP = Model::create<Module, Blank_20HP>("ModularFungi", "Blank_20HP", "20HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_32HP = Model::create<Module, Blank_32HP>("ModularFungi", "Blank_32HP", "32HP Blanking Plate", BLANK_TAG);
