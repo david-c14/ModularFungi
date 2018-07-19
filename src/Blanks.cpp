@@ -37,10 +37,6 @@ struct BitMap : TransparentWidget {
 struct Blank_3HP : ModuleWidget {
 	Blank_3HP(Module *module) : ModuleWidget(module) {
 		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_3HP.svg")));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
 		bmp->path = assetPlugin(plugin, "res/Blank_3HP.png");
 		addChild(bmp);
@@ -50,10 +46,6 @@ struct Blank_3HP : ModuleWidget {
 struct Blank_6HP : ModuleWidget {
 	Blank_6HP(Module *module) : ModuleWidget(module) {
 		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_6HP.svg")));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
 		bmp->path = assetPlugin(plugin, "res/Blank_6HP.png");
 		addChild(bmp);
@@ -63,10 +55,6 @@ struct Blank_6HP : ModuleWidget {
 struct Blank_10HP : ModuleWidget {
 	Blank_10HP(Module *module) : ModuleWidget(module) {
 		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_10HP.svg")));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
 		bmp->path = assetPlugin(plugin, "res/Blank_10HP.png");
 		addChild(bmp);
@@ -76,10 +64,6 @@ struct Blank_10HP : ModuleWidget {
 struct Blank_16HP : ModuleWidget {
 	Blank_16HP(Module *module) : ModuleWidget(module) {
 		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_16HP.svg")));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
 		bmp->path = assetPlugin(plugin, "res/Blank_16HP.png");
 		addChild(bmp);
@@ -89,10 +73,6 @@ struct Blank_16HP : ModuleWidget {
 struct Blank_20HP : ModuleWidget {
 	Blank_20HP(Module *module) : ModuleWidget(module) {
 		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_20HP.svg")));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
 		bmp->path = assetPlugin(plugin, "res/Blank_20HP.png");
 		addChild(bmp);
@@ -102,19 +82,15 @@ struct Blank_20HP : ModuleWidget {
 struct Blank_32HP : ModuleWidget {
 	Blank_32HP(Module *module) : ModuleWidget(module) {
 		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_32HP.svg")));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
 		bmp->path = assetPlugin(plugin, "res/Blank_32HP.png");
 		addChild(bmp);
 	}
 };
 
-Model *modelBlank_3HP = Model::create<Module, Blank_3HP>("ModularFungi", "Blank_3HP", "3HP Blanking Plate", BLANK_TAG);
-Model *modelBlank_6HP = Model::create<Module, Blank_6HP>("ModularFungi", "Blank_6HP", "6HP Blanking Plate", BLANK_TAG);
-Model *modelBlank_10HP = Model::create<Module, Blank_10HP>("ModularFungi", "Blank_10HP", "10HP Blanking Plate", BLANK_TAG);
-Model *modelBlank_16HP = Model::create<Module, Blank_16HP>("ModularFungi", "Blank_16HP", "16HP Blanking Plate", BLANK_TAG);
-Model *modelBlank_20HP = Model::create<Module, Blank_20HP>("ModularFungi", "Blank_20HP", "20HP Blanking Plate", BLANK_TAG);
-Model *modelBlank_32HP = Model::create<Module, Blank_32HP>("ModularFungi", "Blank_32HP", "32HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_3HP = Model::create<Module, Blank_3HP>("Modular Fungi", "Blank 3HP", "3HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_6HP = Model::create<Module, Blank_6HP>("Modular Fungi", "Blank 6HP", "6HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_10HP = Model::create<Module, Blank_10HP>("Modular Fungi", "Blank 10HP", "10HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_16HP = Model::create<Module, Blank_16HP>("Modular Fungi", "Blank 16HP", "16HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_20HP = Model::create<Module, Blank_20HP>("Modular Fungi", "Blank 20HP", "20HP Blanking Plate", BLANK_TAG);
+Model *modelBlank_32HP = Model::create<Module, Blank_32HP>("Modular Fungi", "Blank 32HP", "32HP Blanking Plate", BLANK_TAG);
