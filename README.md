@@ -1,3 +1,3 @@
 # Modular Fungi
 
-### All graphics copyright © Omri Cohen 2018
+#### All graphics copyright © Omri Cohen 2018
