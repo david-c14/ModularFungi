@@ -51,50 +51,14 @@ struct BlankWidget : ModuleWidget {
 	}
 };
 
-struct Blank_New_1 : ModuleWidget {
-	Blank_New_1(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_New_1.svg")));
-		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank_New_1.png");
-		addChild(bmp);
-	}
-};
-
-struct Blank_New_2 : ModuleWidget {
-	Blank_New_2(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_New_2.svg")));
-		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank_New_2.png");
-		addChild(bmp);
-	}
-};
-
-struct Blank_New_3 : ModuleWidget {
-	Blank_New_3(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_New_3.svg")));
-		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank_New_3.png");
-		addChild(bmp);
-	}
-};
-
-struct Blank_New_4 : ModuleWidget {
-	Blank_New_4(Module *module) : ModuleWidget(module) {
-		setPanel(SVG::load(assetPlugin(plugin, "res/Blank_New_4.svg")));
-		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
-		bmp->path = assetPlugin(plugin, "res/Blank_New_4.png");
-		addChild(bmp);
-	}
-};
-
 #define MODEL(x) Model *modelBlank_##x##HP = Model::create<Module, BlankWidget<x>>("Modular Fungi", "Blank " #x "HP", #x "HP Blanking Plate", BLANK_TAG);
+MODEL(1)
 MODEL(3)
+MODEL(4)
 MODEL(6)
 MODEL(10)
+MODEL(12)
 MODEL(16)
 MODEL(20)
+MODEL(26)
 MODEL(32)
-Model *modelBlank_New_1 = Model::create<Module, Blank_New_1>("Modular Fungi", "Blank New_1", "New_1 Blanking Plate", BLANK_TAG);
-Model *modelBlank_New_2 = Model::create<Module, Blank_New_2>("Modular Fungi", "Blank New_2", "New_2 Blanking Plate", BLANK_TAG);
-Model *modelBlank_New_3 = Model::create<Module, Blank_New_3>("Modular Fungi", "Blank New_3", "New_3 Blanking Plate", BLANK_TAG);
-Model *modelBlank_New_4 = Model::create<Module, Blank_New_4>("Modular Fungi", "Blank New_4", "New_4 Blanking Plate", BLANK_TAG);
