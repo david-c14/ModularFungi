@@ -9,17 +9,9 @@ struct BitMap : TransparentWidget {
 			loaded = true;
 			bitmap = nvgCreateImage(vg, path.c_str(), NVG_IMAGE_GENERATE_MIPMAPS);
 			if (!bitmap)
-				return;
-		
-			int w, h;
-			nvgImageSize(vg, bitmap, &w, &h);
-			box.size.x = w;
-			box.size.y = h;	
-			box.pos.x = (parent->box.size.x - w) / 2;
-			box.pos.y = (parent->box.size.y - h) / 2;
-			return;
+				warn("ModularFungi: Unable to load %s", path.c_str());
 		}
-		if (!loaded)
+		if (!bitmap)
 			return;	
 		NVGpaint paint = nvgImagePattern(vg, 0, 0, box.size.x, box.size.y, 0.0f, bitmap, 1.0f);
 		nvgFillPaint(vg, paint);
@@ -39,13 +31,14 @@ struct BlankWidget : ModuleWidget {
 	std::string FileName() {
 		char workingSpace[100];
 		snprintf(workingSpace, 100, "res/Blank_%dHP.png", x);
-		debug("%s", workingSpace);
 		return assetPlugin(plugin, workingSpace);
 	}
 
 	BlankWidget(Module *module) : ModuleWidget(module) {
 		box.size = Vec(RACK_GRID_WIDTH * x, RACK_GRID_HEIGHT);
 		BitMap * bmp = Widget::create<BitMap>(Vec(0,0));
+		bmp->box.size.x = box.size.x;
+		bmp->box.size.y = box.size.y;
 		bmp->path = FileName();
 		addChild(bmp);
 	}
