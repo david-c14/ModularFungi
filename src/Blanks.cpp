@@ -3,8 +3,10 @@
 struct BitMap : TransparentWidget {
 	std::string path;
 	int loaded = false;
-	int bitmap;
+	int bitmap = 0;
+	NVGcontext *storedVG;
 	void DrawImage(NVGcontext *vg) {
+		storedVG = vg;	
 		if (!loaded) {
 			loaded = true;
 			bitmap = nvgCreateImage(vg, path.c_str(), NVG_IMAGE_GENERATE_MIPMAPS);
@@ -23,6 +25,10 @@ struct BitMap : TransparentWidget {
 	void draw(NVGcontext *vg) override {
 		DrawImage(vg);
 		TransparentWidget::draw(vg);
+	}
+	~BitMap() {
+		if (!bitmap)
+			nvgDeleteImage(storedVG, bitmap);
 	}
 };
 
