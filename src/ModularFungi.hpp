@@ -16,3 +16,4 @@ extern Model *modelBlank_16HP;
 extern Model *modelBlank_20HP;
 extern Model *modelBlank_26HP;
 extern Model *modelBlank_32HP;
+extern Model *modelME;
