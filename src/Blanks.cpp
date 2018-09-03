@@ -1,37 +1,5 @@
 #include "ModularFungi.hpp"
 
-struct BitMap : TransparentWidget {
-	std::string path;
-	int loaded = false;
-	int bitmap = 0;
-	NVGcontext *storedVG;
-	void DrawImage(NVGcontext *vg) {
-		storedVG = vg;	
-		if (!loaded) {
-			loaded = true;
-			bitmap = nvgCreateImage(vg, path.c_str(), NVG_IMAGE_GENERATE_MIPMAPS);
-			if (!bitmap)
-				warn("ModularFungi: Unable to load %s", path.c_str());
-		}
-		if (!bitmap)
-			return;	
-		NVGpaint paint = nvgImagePattern(vg, 0, 0, box.size.x, box.size.y, 0.0f, bitmap, 1.0f);
-		nvgFillPaint(vg, paint);
-		nvgBeginPath(vg);
-		nvgRect(vg, 0, 0, box.size.x, box.size.y);
-		nvgFill(vg);
-		
-	}
-	void draw(NVGcontext *vg) override {
-		DrawImage(vg);
-		TransparentWidget::draw(vg);
-	}
-	~BitMap() {
-		if (!bitmap)
-			nvgDeleteImage(storedVG, bitmap);
-	}
-};
-
 template<int x>
 struct BlankWidget : ModuleWidget {
 	std::string FileName() {
