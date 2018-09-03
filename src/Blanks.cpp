@@ -1,21 +1,63 @@
 #include "ModularFungi.hpp"
 
+struct MFTexture {
+	int image;
+	std::string name;
+	NVGcontext *context;
+	int width;
+	int height;
+	MFTexture(NVGcontext *vg, std::string fileName, int imageFlags) {
+		image = nvgCreateImage(vg, fileName.c_str(), imageFlags);
+		name = fileName;
+		context = vg;
+		if (!image)
+			return;
+		nvgImageSize(vg, image, &width, &height);
+		debug("Loaded texture %s", name.c_str());
+	}
+	~MFTexture() {
+		if (image)
+			nvgDeleteImage(context, image);
+		image = 0;
+		debug("Released texture %s", name.c_str());
+	}
+};
+
+struct MFTextureList {
+	std::vector<std::shared_ptr<MFTexture>> list;
+	std::shared_ptr<MFTexture> Load(NVGcontext *vg, std::string fileName, int imageFlags) {
+		for (std::shared_ptr<MFTexture> tex : list) {
+			if ((tex->context == vg) && !tex->name.compare(fileName)) {
+				if (tex->image)
+					return tex;
+				tex = std::make_shared<MFTexture>(vg, fileName, imageFlags);
+				return tex;
+			}
+		}
+		std::shared_ptr<MFTexture> tex = std::make_shared<MFTexture>(vg, fileName, imageFlags);
+		list.push_back(tex);
+		return tex;
+	}
+};
+
+MFTextureList gTextureList;
+
 struct BitMap : TransparentWidget {
 	std::string path;
 	int loaded = false;
-	int bitmap = 0;
+	std::shared_ptr<MFTexture> bitmap;
 	NVGcontext *storedVG;
 	void DrawImage(NVGcontext *vg) {
 		storedVG = vg;	
 		if (!loaded) {
 			loaded = true;
-			bitmap = nvgCreateImage(vg, path.c_str(), NVG_IMAGE_GENERATE_MIPMAPS);
-			if (!bitmap)
+			bitmap = gTextureList.Load(vg, path, NVG_IMAGE_GENERATE_MIPMAPS);
+			if (!bitmap->image)
 				warn("ModularFungi: Unable to load %s", path.c_str());
 		}
-		if (!bitmap)
+		if (!bitmap->image)
 			return;	
-		NVGpaint paint = nvgImagePattern(vg, 0, 0, box.size.x, box.size.y, 0.0f, bitmap, 1.0f);
+		NVGpaint paint = nvgImagePattern(vg, 0, 0, box.size.x, box.size.y, 0.0f, bitmap->image, 1.0f);
 		nvgFillPaint(vg, paint);
 		nvgBeginPath(vg);
 		nvgRect(vg, 0, 0, box.size.x, box.size.y);
@@ -25,10 +67,6 @@ struct BitMap : TransparentWidget {
 	void draw(NVGcontext *vg) override {
 		DrawImage(vg);
 		TransparentWidget::draw(vg);
-	}
-	~BitMap() {
-		if (!bitmap)
-			nvgDeleteImage(storedVG, bitmap);
 	}
 };
 
