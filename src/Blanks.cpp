@@ -6,31 +6,45 @@ struct MFTexture {
 	NVGcontext *context;
 	int width;
 	int height;
+	int refCount = 0;
 	MFTexture(NVGcontext *vg, std::string fileName, int imageFlags) {
+		reload(vg, fileName, imageFlags);
+	}
+	void reload(NVGcontext *vg, std::string fileName, int imageFlags) {
+		if (image)
+			nvgDeleteImage(vg, image);
 		image = nvgCreateImage(vg, fileName.c_str(), imageFlags);
 		name = fileName;
 		context = vg;
+		refCount++;
 		if (!image)
 			return;
 		nvgImageSize(vg, image, &width, &height);
-		debug("Loaded texture %s", name.c_str());
 	}
-	~MFTexture() {
+	void release() {
+		refCount--;
+		if (refCount)
+			return;
+		refCount = 0;
 		if (image)
 			nvgDeleteImage(context, image);
 		image = 0;
-		debug("Released texture %s", name.c_str());
+	}
+	~MFTexture() {
+		release();
 	}
 };
 
 struct MFTextureList {
 	std::vector<std::shared_ptr<MFTexture>> list;
-	std::shared_ptr<MFTexture> Load(NVGcontext *vg, std::string fileName, int imageFlags) {
+	std::shared_ptr<MFTexture> load(NVGcontext *vg, std::string fileName, int imageFlags) {
 		for (std::shared_ptr<MFTexture> tex : list) {
 			if ((tex->context == vg) && !tex->name.compare(fileName)) {
-				if (tex->image)
+				if (tex->image) {
+					tex->refCount++;
 					return tex;
-				tex = std::make_shared<MFTexture>(vg, fileName, imageFlags);
+				}
+				tex->reload(vg, fileName, imageFlags);	
 				return tex;
 			}
 		}
@@ -51,7 +65,7 @@ struct BitMap : TransparentWidget {
 		storedVG = vg;	
 		if (!loaded) {
 			loaded = true;
-			bitmap = gTextureList.Load(vg, path, NVG_IMAGE_GENERATE_MIPMAPS);
+			bitmap = gTextureList.load(vg, path, NVG_IMAGE_GENERATE_MIPMAPS);
 			if (!bitmap->image)
 				warn("ModularFungi: Unable to load %s", path.c_str());
 		}
@@ -67,6 +81,10 @@ struct BitMap : TransparentWidget {
 	void draw(NVGcontext *vg) override {
 		DrawImage(vg);
 		TransparentWidget::draw(vg);
+	}
+	~BitMap() {
+		if (bitmap)
+			bitmap->release();
 	}
 };
 
