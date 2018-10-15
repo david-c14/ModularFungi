@@ -3,7 +3,8 @@
 struct BlankBaseWidget : ModuleWidget {
 	int templateSize;
 	int selected = 0;
-	BitMap *bmp[2];
+	std::string fileName[2];
+	BitMap *bmp;
 	std::string FileName(std::string tpl) {
 		char workingSpace[100];
 		snprintf(workingSpace, 100, tpl.c_str(), templateSize);
@@ -12,10 +13,20 @@ struct BlankBaseWidget : ModuleWidget {
 
 	BlankBaseWidget(Module *module) : ModuleWidget(module) { }
 	void appendContextMenu(Menu *menu) override;
+	void loadBitmap() {
+		bmp = Widget::create<BitMap>(Vec(0,0));
+		bmp->box.size.x = box.size.x;
+		bmp->box.size.y = box.size.y;
+		bmp->path = fileName[selected];
+		addChild(bmp);
+	}
 	void setBitmap(int sel) {
+		if (selected == sel)
+			return;
 		selected = sel;
-		bmp[0]->visible = !sel;
-		bmp[1]->visible = sel;
+		removeChild(bmp);
+		delete bmp;
+		loadBitmap();
 	}
 	json_t *toJson() override {
 		json_t *rootJ = ModuleWidget::toJson();
@@ -24,10 +35,11 @@ struct BlankBaseWidget : ModuleWidget {
 	}
 	void fromJson(json_t *rootJ) override {
 		ModuleWidget::fromJson(rootJ);
+		int sel = selected;
 		json_t *styleJ = json_object_get(rootJ, "style");
 		if (styleJ)
-			selected = json_number_value(styleJ);
-		setBitmap(selected);
+			sel = json_number_value(styleJ);
+		setBitmap(sel);
 	}	
 	
 };
@@ -58,18 +70,10 @@ template<int x>
 struct BlankWidget : BlankBaseWidget {
 	BlankWidget(Module *module) : BlankBaseWidget(module) {
 		templateSize = x;
+		fileName[0] = FileName("res/Blank_%dHP.png");
+		fileName[1] = FileName("res/Zen_%dHP.png");
 		box.size = Vec(RACK_GRID_WIDTH * x, RACK_GRID_HEIGHT);
-		bmp[0] = Widget::create<BitMap>(Vec(0,0));
-		bmp[0]->box.size.x = box.size.x;
-		bmp[0]->box.size.y = box.size.y;
-		bmp[0]->path = FileName("res/Blank_%dHP.png");
-		addChild(bmp[0]);
-		bmp[1] = Widget::create<BitMap>(Vec(0,0));
-		bmp[1]->box.size.x = box.size.x;
-		bmp[1]->box.size.y = box.size.y;
-		bmp[1]->path = FileName("res/Zen_%dHP.png");
-		bmp[1]->visible = false;
-		addChild(bmp[1]);
+		loadBitmap();
 	}
 };
 
