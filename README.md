@@ -4,6 +4,9 @@
 
 [Downloads](https://github.com/david-c14/ModularFungi/releases/tag/v0.6.1)
 
-#### All graphics copyright © Omri Cohen 2018
+#### The Modular Fungi collection was designed by [Omri Cohen](https://bit.ly/2P2watb) and coded by [David O'Rourke](https://github.com/david-c14)
 
-#### Montserrat Font copyright © 2011 The Montserrat Project Authors. See OFL.txt for license
+The Modular Fungi collection is available for free, and any [donations](https://paypal.me/omricohencomposer)
+that would encourage more creation is welcome.
+
+
