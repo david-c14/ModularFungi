@@ -1,5 +1,7 @@
 # Modular Fungi
 
+![](manual/ModularFungi.jpg)
+
 10 Blanking plates in various sizes.
 
 [Downloads](https://github.com/david-c14/ModularFungi/releases/tag/v0.6.1)
