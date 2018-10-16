@@ -5,7 +5,7 @@
 using namespace rack;
 
 struct MFTexture {
-	int image;
+	int image = 0;
 	std::string name;
 	NVGcontext *context;
 	int width;
@@ -32,7 +32,6 @@ struct BitMap : TransparentWidget {
 	std::string path;
 	int loaded = false;
 	std::shared_ptr<MFTexture> bitmap;
-	NVGcontext *storedVG;
 	void DrawImage(NVGcontext *vg);
 	void draw(NVGcontext *vg) override;
 	~BitMap() {
