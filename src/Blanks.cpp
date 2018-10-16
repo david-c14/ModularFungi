@@ -1,11 +1,11 @@
 #include "ModularFungi.hpp"
 
 struct BlankBaseWidget : ModuleWidget {
-	int templateSize;
+	static constexpr int LISTSIZE = 2;
 	int selected = 0;
-	std::string fileName[2];
+	std::string fileName[LISTSIZE];
 	BitMap *bmp;
-	std::string FileName(std::string tpl) {
+	std::string FileName(std::string tpl, int templateSize) {
 		char workingSpace[100];
 		snprintf(workingSpace, 100, tpl.c_str(), templateSize);
 		return assetPlugin(plugin, workingSpace);
@@ -23,7 +23,7 @@ struct BlankBaseWidget : ModuleWidget {
 	void setBitmap(int sel) {
 		if (selected == sel)
 			return;
-		selected = sel;
+		selected = clamp(sel, 0, LISTSIZE - 1);
 		removeChild(bmp);
 		delete bmp;
 		loadBitmap();
@@ -69,9 +69,8 @@ void BlankBaseWidget::appendContextMenu(Menu *menu) {
 template<int x>
 struct BlankWidget : BlankBaseWidget {
 	BlankWidget(Module *module) : BlankBaseWidget(module) {
-		templateSize = x;
-		fileName[0] = FileName("res/Blank_%dHP.png");
-		fileName[1] = FileName("res/Zen_%dHP.png");
+		fileName[0] = FileName("res/Blank_%dHP.png", x);
+		fileName[1] = FileName("res/Zen_%dHP.png", x);
 		box.size = Vec(RACK_GRID_WIDTH * x, RACK_GRID_HEIGHT);
 		loadBitmap();
 	}
