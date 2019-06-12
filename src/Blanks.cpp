@@ -11,7 +11,9 @@ struct BlankBaseWidget : ModuleWidget {
 		return assetPlugin(pluginInstance, workingSpace);
 	}
 
-	BlankBaseWidget(Module *module) : ModuleWidget(module) { }
+	BlankBaseWidget(Module *module) : ModuleWidget() {
+		setModule(module);
+	}
 	void appendContextMenu(Menu *menu) override;
 	void loadBitmap() {
 		bmp = createWidget<BitMap>(Vec(0,0));
@@ -28,13 +30,13 @@ struct BlankBaseWidget : ModuleWidget {
 		delete bmp;
 		loadBitmap();
 	}
-	json_t *toJson() override {
-		json_t *rootJ = ModuleWidget::toJson();
+	json_t *dataToJson() override {
+		json_t *rootJ = ModuleWidget::dataToJson();
 		json_object_set_new(rootJ, "style", json_real(selected));
 		return rootJ;
 	}
-	void fromJson(json_t *rootJ) override {
-		ModuleWidget::fromJson(rootJ);
+	void dataFromJson(json_t *rootJ) override {
+		ModuleWidget::dataFromJson(rootJ);
 		int sel = selected;
 		json_t *styleJ = json_object_get(rootJ, "style");
 		if (styleJ)
@@ -47,7 +49,7 @@ struct BlankBaseWidget : ModuleWidget {
 struct BitmapMenuItem : MenuItem {
 	BlankBaseWidget *w;
 	int value;
-	void onAction(EventAction &e) override {
+	void onAction(const event::Action &e) override {
 		w->setBitmap(value);
 	}
 };
