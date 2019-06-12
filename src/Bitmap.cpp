@@ -57,7 +57,7 @@ void BitMap::DrawImage(NVGcontext *vg) {
 	nvgFill(vg);
 	
 }
-void BitMap::draw(NVGcontext *vg) {
-	DrawImage(vg);
-	TransparentWidget::draw(vg);
+void BitMap::draw(const DrawArgs &args) {
+	DrawImage(args.vg);
+	TransparentWidget::draw(args);
 }

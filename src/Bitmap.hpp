@@ -33,7 +33,7 @@ struct BitMap : TransparentWidget {
 	int loaded = false;
 	std::shared_ptr<MFTexture> bitmap;
 	void DrawImage(NVGcontext *vg);
-	void draw(NVGcontext *vg) override;
+	void draw(const DrawArgs &args) override;
 	~BitMap() {
 		if (bitmap)
 			bitmap->release();

@@ -8,7 +8,7 @@ struct BlankBaseWidget : ModuleWidget {
 	std::string FileName(std::string tpl, int templateSize) {
 		char workingSpace[100];
 		snprintf(workingSpace, 100, tpl.c_str(), templateSize);
-		return assetPlugin(pluginInstance, workingSpace);
+		return asset::plugin(pluginInstance, workingSpace);
 	}
 
 	BlankBaseWidget(Module *module) : ModuleWidget() {
@@ -30,13 +30,13 @@ struct BlankBaseWidget : ModuleWidget {
 		delete bmp;
 		loadBitmap();
 	}
-	json_t *dataToJson() override {
-		json_t *rootJ = ModuleWidget::dataToJson();
+	json_t *toJson() override {
+		json_t *rootJ = ModuleWidget::toJson();
 		json_object_set_new(rootJ, "style", json_real(selected));
 		return rootJ;
 	}
-	void dataFromJson(json_t *rootJ) override {
-		ModuleWidget::dataFromJson(rootJ);
+	void fromJson(json_t *rootJ) override {
+		ModuleWidget::fromJson(rootJ);
 		int sel = selected;
 		json_t *styleJ = json_object_get(rootJ, "style");
 		if (styleJ)
