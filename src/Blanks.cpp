@@ -76,14 +76,13 @@ struct BlankWidget : BlankBaseWidget {
 	}
 };
 
-#define MODEL(x) Model *modelBlank_##x##HP = Model::create<Module, BlankWidget<x>>("Modular Fungi", "Blank " #x "HP", #x "HP Blanking Plate", BLANK_TAG);
-MODEL(1)
-MODEL(3)
-MODEL(4)
-MODEL(6)
-MODEL(10)
-MODEL(12)
-MODEL(16)
-MODEL(20)
-MODEL(26)
-MODEL(32)
+Model *modelBlank_1HP = Model::create<Module, BlankWidget<1>>("Blank 1HP");
+Model *modelBlank_3HP = Model::create<Module, BlankWidget<3>>("Blank 3HP");
+Model *modelBlank_4HP = Model::create<Module, BlankWidget<4>>("Blank 4HP");
+Model *modelBlank_6HP = Model::create<Module, BlankWidget<6>>("Blank 6HP");
+Model *modelBlank_10HP = Model::create<Module, BlankWidget<10>>("Blank 10HP");
+Model *modelBlank_12HP = Model::create<Module, BlankWidget<12>>("Blank 12HP");
+Model *modelBlank_16HP = Model::create<Module, BlankWidget<16>>("Blank 16HP");
+Model *modelBlank_20HP = Model::create<Module, BlankWidget<20>>("Blank 20HP");
+Model *modelBlank_26HP = Model::create<Module, BlankWidget<26>>("Blank 26HP");
+Model *modelBlank_32HP = Model::create<Module, BlankWidget<32>>("Blank 32HP");

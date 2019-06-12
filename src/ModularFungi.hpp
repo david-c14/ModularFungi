@@ -1,4 +1,3 @@
-#include "rack.hpp"
 #include "Bitmap.hpp"
 
 using namespace rack;
