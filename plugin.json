@@ -1,0 +1,71 @@
+{
+	"slug": "ModularFungi",
+	"name": "Modular Fungi",
+	"author": "Omri Cohen",
+	"license": "BSD-3",
+	"authorUrl": "https://vcvrack.submarine.org.uk",
+	"sourceUrl": "https://github.com/david-c14/ModularFungi",
+	"version": "1.0.0",
+	"modules": {
+		"Blank 1HP": {
+			"slug":"Blank 1HP",
+			"name":"Blank 1HP",
+			"description":"1 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 3HP": {
+			"slug":"Blank 3HP",
+			"name":"Blank 3HP",
+			"description":"3 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 4HP": {
+			"slug":"Blank 4HP",
+			"name":"Blank 4HP",
+			"description":"4 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 6HP": {
+			"slug":"Blank 6HP",
+			"name":"Blank 6HP",
+			"description":"6 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 10HP": {
+			"slug":"Blank 10HP",
+			"name":"Blank 10HP",
+			"description":"10 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 12HP": {
+			"slug":"Blank 12HP",
+			"name":"Blank 12HP",
+			"description":"12 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 16HP": {
+			"slug":"Blank 16HP",
+			"name":"Blank 16HP",
+			"description":"16 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 20HP": {
+			"slug":"Blank 20HP",
+			"name":"Blank 20HP",
+			"description":"20 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 26HP": {
+			"slug":"Blank 26HP",
+			"name":"Blank 26HP",
+			"description":"26 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		},
+		"Blank 32HP": {
+			"slug":"Blank 32HP",
+			"name":"Blank 32HP",
+			"description":"32 HP Blanking Plate",
+			"tags":["BLANK_TAG"]
+		}
+	}
+}
