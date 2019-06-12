@@ -8,7 +8,7 @@ struct BlankBaseWidget : ModuleWidget {
 	std::string FileName(std::string tpl, int templateSize) {
 		char workingSpace[100];
 		snprintf(workingSpace, 100, tpl.c_str(), templateSize);
-		return assetPlugin(plugin, workingSpace);
+		return assetPlugin(pluginInstance, workingSpace);
 	}
 
 	BlankBaseWidget(Module *module) : ModuleWidget(module) { }
