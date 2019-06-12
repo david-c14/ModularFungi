@@ -14,7 +14,7 @@ struct BlankBaseWidget : ModuleWidget {
 	BlankBaseWidget(Module *module) : ModuleWidget(module) { }
 	void appendContextMenu(Menu *menu) override;
 	void loadBitmap() {
-		bmp = Widget::create<BitMap>(Vec(0,0));
+		bmp = createWidget<BitMap>(Vec(0,0));
 		bmp->box.size.x = box.size.x;
 		bmp->box.size.y = box.size.y;
 		bmp->path = fileName[selected];
@@ -53,13 +53,13 @@ struct BitmapMenuItem : MenuItem {
 };
 
 void BlankBaseWidget::appendContextMenu(Menu *menu) {
-	menu->addChild(MenuEntry::create());
-	BitmapMenuItem *m = MenuItem::create<BitmapMenuItem>("Classic");
+	menu->addChild(new MenuEntry);
+	BitmapMenuItem *m = createMenuItem<BitmapMenuItem>("Classic");
 	m->w = this;
 	m->value = 0;
 	m->rightText = CHECKMARK(selected==m->value);
 	menu->addChild(m);
-	m = MenuItem::create<BitmapMenuItem>("Zen");
+	m = createMenuItem<BitmapMenuItem>("Zen");
 	m->w = this;
 	m->value = 1;
 	m->rightText = CHECKMARK(selected==m->value);
@@ -76,13 +76,13 @@ struct BlankWidget : BlankBaseWidget {
 	}
 };
 
-Model *modelBlank_1HP = Model::create<Module, BlankWidget<1>>("Blank 1HP");
-Model *modelBlank_3HP = Model::create<Module, BlankWidget<3>>("Blank 3HP");
-Model *modelBlank_4HP = Model::create<Module, BlankWidget<4>>("Blank 4HP");
-Model *modelBlank_6HP = Model::create<Module, BlankWidget<6>>("Blank 6HP");
-Model *modelBlank_10HP = Model::create<Module, BlankWidget<10>>("Blank 10HP");
-Model *modelBlank_12HP = Model::create<Module, BlankWidget<12>>("Blank 12HP");
-Model *modelBlank_16HP = Model::create<Module, BlankWidget<16>>("Blank 16HP");
-Model *modelBlank_20HP = Model::create<Module, BlankWidget<20>>("Blank 20HP");
-Model *modelBlank_26HP = Model::create<Module, BlankWidget<26>>("Blank 26HP");
-Model *modelBlank_32HP = Model::create<Module, BlankWidget<32>>("Blank 32HP");
+Model *modelBlank_1HP = createModel<Module, BlankWidget<1>>("Blank 1HP");
+Model *modelBlank_3HP = createModel<Module, BlankWidget<3>>("Blank 3HP");
+Model *modelBlank_4HP = createModel<Module, BlankWidget<4>>("Blank 4HP");
+Model *modelBlank_6HP = createModel<Module, BlankWidget<6>>("Blank 6HP");
+Model *modelBlank_10HP = createModel<Module, BlankWidget<10>>("Blank 10HP");
+Model *modelBlank_12HP = createModel<Module, BlankWidget<12>>("Blank 12HP");
+Model *modelBlank_16HP = createModel<Module, BlankWidget<16>>("Blank 16HP");
+Model *modelBlank_20HP = createModel<Module, BlankWidget<20>>("Blank 20HP");
+Model *modelBlank_26HP = createModel<Module, BlankWidget<26>>("Blank 26HP");
+Model *modelBlank_32HP = createModel<Module, BlankWidget<32>>("Blank 32HP");
