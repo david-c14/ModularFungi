@@ -19,7 +19,6 @@ void MFTexture::release() {
 	if (image)
 		nvgDeleteImage(context, image);
 	image = 0;
-	debug("Image Released %s", name.c_str());
 }
 
 std::shared_ptr<MFTexture> MFTextureList::load(NVGcontext *vg, std::string fileName, int imageFlags) {
@@ -35,7 +34,6 @@ std::shared_ptr<MFTexture> MFTextureList::load(NVGcontext *vg, std::string fileN
 	}
 	std::shared_ptr<MFTexture> tex = std::make_shared<MFTexture>(vg, fileName, imageFlags);
 	list.push_back(tex);
-	debug("Image loaded %s", fileName.c_str());
 	return tex;
 }
 
@@ -46,7 +44,7 @@ void BitMap::DrawImage(NVGcontext *vg) {
 		loaded = true;
 		bitmap = gTextureList.load(vg, path, 0);
 		if (!bitmap->image)
-			warn("ModularFungi: Unable to load %s", path.c_str());
+			WARN("ModularFungi: Unable to load %s", path.c_str());
 	}
 	if (!bitmap->image)
 		return;	
