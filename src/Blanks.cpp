@@ -78,13 +78,13 @@ struct BlankWidget : BlankBaseWidget {
 	}
 };
 
-Model *modelBlank_1HP = createModel<Module, BlankWidget<1>>("Blank 1HP");
-Model *modelBlank_3HP = createModel<Module, BlankWidget<3>>("Blank 3HP");
-Model *modelBlank_4HP = createModel<Module, BlankWidget<4>>("Blank 4HP");
-Model *modelBlank_6HP = createModel<Module, BlankWidget<6>>("Blank 6HP");
-Model *modelBlank_10HP = createModel<Module, BlankWidget<10>>("Blank 10HP");
-Model *modelBlank_12HP = createModel<Module, BlankWidget<12>>("Blank 12HP");
-Model *modelBlank_16HP = createModel<Module, BlankWidget<16>>("Blank 16HP");
-Model *modelBlank_20HP = createModel<Module, BlankWidget<20>>("Blank 20HP");
-Model *modelBlank_26HP = createModel<Module, BlankWidget<26>>("Blank 26HP");
-Model *modelBlank_32HP = createModel<Module, BlankWidget<32>>("Blank 32HP");
+Model *modelBlank_1HP = createModel<Module, BlankWidget<1>>("Blank1HP");
+Model *modelBlank_3HP = createModel<Module, BlankWidget<3>>("Blank3HP");
+Model *modelBlank_4HP = createModel<Module, BlankWidget<4>>("Blank4HP");
+Model *modelBlank_6HP = createModel<Module, BlankWidget<6>>("Blank6HP");
+Model *modelBlank_10HP = createModel<Module, BlankWidget<10>>("Blank10HP");
+Model *modelBlank_12HP = createModel<Module, BlankWidget<12>>("Blank12HP");
+Model *modelBlank_16HP = createModel<Module, BlankWidget<16>>("Blank16HP");
+Model *modelBlank_20HP = createModel<Module, BlankWidget<20>>("Blank20HP");
+Model *modelBlank_26HP = createModel<Module, BlankWidget<26>>("Blank26HP");
+Model *modelBlank_32HP = createModel<Module, BlankWidget<32>>("Blank32HP");
