@@ -69,6 +69,12 @@
 			"name":"Blank 32HP",
 			"description":"32 HP Blanking Plate",
 			"tags":["Blank"]
+		},
+		{
+			"slug":"Color12HP",
+			"name":"Color Scheme",
+			"description":"12 HP Blanking Plate with Color Key",
+			"tags":["Blank"]
 		}
 	]
 }
