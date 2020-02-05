@@ -4,7 +4,7 @@
 
 10 Blanking plates in various sizes.
 
-[Downloads](https://github.com/david-c14/ModularFungi/releases/tag/v0.6.1)
+[Downloads](https://github.com/david-c14/ModularFungi/releases)
 
 #### The Modular Fungi collection was designed by [Omri Cohen](https://bit.ly/2P2watb) and coded by [David O'Rourke](https://github.com/david-c14)
 
