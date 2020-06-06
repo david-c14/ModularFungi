@@ -74,6 +74,7 @@ struct LightsOffContainer : widget::Widget {
 			nvgFill(args.vg);
 
 			// Draw lights
+			Rect viewPort = getViewport(box);
 			std::queue<Widget*> q;
 			q.push(APP->scene->rack->moduleContainer);
 			while (!q.empty()) {
@@ -82,16 +83,19 @@ struct LightsOffContainer : widget::Widget {
 
 				LightWidget *lw = dynamic_cast<LightWidget*>(w);
 				if (lw) {
-					nvgSave(args.vg);
-					nvgResetScissor(args.vg);
 					Vec p1 = lw->getRelativeOffset(Vec(), this);
 					Vec p = getAbsoluteOffset(Vec()).neg();
 					p = p.plus(p1);
 					p = p.div(APP->scene->rackScroll->zoomWidget->zoom);
-					nvgTranslate(args.vg, p.x, p.y);
 
-					lw->draw(args);
-					nvgRestore(args.vg);
+					// Draw only if currently visible
+					if (viewPort.isIntersecting(Rect(p, lw->box.size))) {
+						nvgSave(args.vg);
+						nvgResetScissor(args.vg);
+						nvgTranslate(args.vg, p.x, p.y);
+						lw->draw(args);
+						nvgRestore(args.vg);
+					}
 				}
 
 				for (Widget *w1 : w->children) {
