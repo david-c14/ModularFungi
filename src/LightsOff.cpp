@@ -1,5 +1,7 @@
 // "Lights Off" module for VCV Rack
 //
+// BSD 3-Clause License
+//
 // Copyright (C) 2020 Benjamin Dill
 // All rights reserved.
 //
@@ -34,6 +36,7 @@
 
 struct LightsOffModule : Module {
 	enum ParamIds {
+		PARAM_DIM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -49,21 +52,9 @@ struct LightsOffModule : Module {
 
 	bool active = false;
 
-	/** [Stored to JSON] */
-	float dim = 0.8f;
-
 	LightsOffModule() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
-	}
-
-	json_t *dataToJson() override {
-		json_t *rootJ = json_object();
-		json_object_set_new(rootJ, "dim", json_real(dim));
-		return rootJ;
-	}
-
-	void dataFromJson(json_t *rootJ) override {
-		dim = json_real_value(json_object_get(rootJ, "dim"));
+		configParam(PARAM_DIM, 0.0f, 1.0f, 0.8f, "Dim", "%", 0.f, 100.f);
 	}
 };
 
@@ -79,7 +70,7 @@ struct LightsOffContainer : widget::Widget {
 			box = parent->box.zeroPos();
 			nvgBeginPath(args.vg);
 			nvgRect(args.vg, 0, 0, box.size.x, box.size.y);
-			nvgFillColor(args.vg, nvgRGBA(0x00, 0x00, 0x00, (char)(255.f * module->dim)));
+			nvgFillColor(args.vg, nvgRGBA(0x00, 0x00, 0x00, (char)(255.f * module->params[LightsOffModule::PARAM_DIM].getValue())));
 			nvgFill(args.vg);
 
 			// Draw lights
@@ -180,46 +171,9 @@ struct LightsOffWidget : ModuleWidget {
 		LightsOffModule *module = dynamic_cast<LightsOffModule*>(this->module);
 
 		struct DimSlider : ui::Slider {
-			struct DimQuantity : Quantity {
-				LightsOffModule *module;
-				DimQuantity(LightsOffModule *module) {
-					this->module = module;
-				}
-				void setValue(float value) override {
-					module->dim = math::clamp(value, 0.f, 1.f);
-				}
-				float getValue() override {
-					return module->dim;
-				}
-				float getDefaultValue() override {
-					return 0.8f;
-				}
-				float getDisplayValue() override {
-					return getValue() * 100;
-				}
-				void setDisplayValue(float displayValue) override {
-					setValue(displayValue / 100);
-				}
-				std::string getLabel() override {
-					return "Dim";
-				}
-				std::string getUnit() override {
-					return "%";
-				}
-				float getMaxValue() override {
-					return 1.f;
-				}
-				float getMinValue() override {
-					return 0.f;
-				}
-			};
-
 			DimSlider(LightsOffModule *module) {
 				box.size.x = 180.0f;
-				quantity = new DimQuantity(module);
-			}
-			~DimSlider() {
-				delete quantity;
+				quantity = module->paramQuantities[LightsOffModule::PARAM_DIM];
 			}
 		};
 
