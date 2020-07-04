@@ -183,7 +183,7 @@ struct LightsOffWidget : ModuleWidget {
 		};
 
 		menu->addChild(new MenuSeparator());
-		menu->addChild(construct<MenuLabel>(&MenuLabel::text, string::f("Hotkey %s+Alt+X", RACK_MOD_CTRL_NAME)));
+		menu->addChild(construct<MenuLabel>(&MenuLabel::text, "Hotkey " RACK_MOD_CTRL_NAME "+Alt+X"));
 		menu->addChild(new DimSlider(module));
 	}
 };
