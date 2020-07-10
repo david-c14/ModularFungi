@@ -24,10 +24,13 @@ struct Scope : Module {
 		KALEIDOSCOPE_USE_PARAM,
 		KALEIDOSCOPE_COUNT_PARAM,
 		KALEIDOSCOPE_RADIUS_PARAM,
+		KALEIDOSCOPE_COLOR_SPREAD_PARAM,
 		LINE_WIDTH_PARAM,
 		LINE_FADE_PARAM,
 		LINE_COLOR_PARAM,
 		LINE_TYPE_PARAM,
+		SHOW_STATS_PARAM,
+		SHOW_LABELS_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -38,6 +41,13 @@ struct Scope : Module {
 		LINE_WIDTH_INPUT,
 		KALEIDOSCOPE_COUNT_INPUT,
 		KALEIDOSCOPE_RADIUS_INPUT,
+		KALEIDOSCOPE_COLOR_SPREAD_INPUT,
+		X_SCALE_INPUT,
+		Y_SCALE_INPUT,
+		X_POS_INPUT,
+		Y_POS_INPUT,
+		TIME_INPUT,
+		TRIG_LEVEL_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -99,8 +109,11 @@ struct Scope : Module {
 
 		configParam(LINE_TYPE_PARAM, 0.0f, NUM_LINES - 1, Scope::LineType::NORMAL_LINE, "Line Type");
 		configParam(LINE_WIDTH_PARAM, 0.1f, 10.0f, 1.5f, "Line Width");
-		configParam(LINE_COLOR_PARAM, 0.0f, 1.0f, 5.0f, "Color");
+		configParam(LINE_COLOR_PARAM, 0.0f, 1.0f, 1.0f, "Color");
 		configParam(LINE_FADE_PARAM, 0.0f, 1.0f, 1.0f, "Fade");
+		configParam(SHOW_STATS_PARAM, 0.0f, 1.0f, 0.0f, "Show Stats");
+		configParam(KALEIDOSCOPE_COLOR_SPREAD_PARAM, 0.0f, 1.0f, 0.0f, "Kaleidoscope Color Spread");
+		configParam(SHOW_LABELS_PARAM, 0.0f, 1.0f, 0.0f, "Show Labels");
 	}
 
 	void onReset() override {
@@ -137,7 +150,10 @@ struct Scope : Module {
 			kaleidoscope.use = !kaleidoscope.use;
 
 		// Compute time
-		float deltaTime = std::pow(2.f, -params[TIME_PARAM].getValue());
+		//updated to use cv
+		float deltaTime = std::pow(2.f,
+								   -clamp(params[TIME_PARAM].getValue() + abs(inputs[TIME_INPUT].getVoltage()), 6.0f,
+										  16.0f));
 		int frameCount = (int) std::ceil(deltaTime * args.sampleRate);
 
 		// Set channels
@@ -182,6 +198,8 @@ struct Scope : Module {
 
 		// Reset if triggered
 		float trigThreshold = params[TRIG_PARAM].getValue();
+		trigThreshold += inputs[Scope::TRIG_LEVEL_INPUT].getVoltage();
+		trigThreshold = clamp(trigThreshold, -10.0f, 10.0f);
 		Input &trigInput = external ? inputs[TRIG_INPUT] : inputs[X_INPUT];
 
 		// This may be 0
@@ -337,15 +355,15 @@ struct ScopeDisplay : ModuleLightWidget {
 	}
 
 	void drawWaveform(const DrawArgs &args,
-								  const float *bufferX,
-								  float offsetX,
-								  float gainX,
-								  const float *bufferY,
-								  float offsetY,
-								  float gainY,
-								  float kRadius = 0.0f,
-								  float kRotation = 0.0f,
-								  NVGcolor beam = {1.0f, 1.0f, 1.0f, 1.0f}) {
+					  const float *bufferX,
+					  float offsetX,
+					  float gainX,
+					  const float *bufferY,
+					  float offsetY,
+					  float gainY,
+					  float kRadius = 0.0f,
+					  float kRotation = 0.0f,
+					  NVGcolor beam = {1.0f, 1.0f, 1.0f, 1.0f}) {
 		assert(bufferY);
 		nvgSave(args.vg);
 
@@ -500,14 +518,34 @@ struct ScopeDisplay : ModuleLightWidget {
 		nvgText(args.vg, pos.x + 58 * 2, pos.y, text.c_str(), NULL);
 	}
 
+	void drawLabels(const DrawArgs &args) {
+		std::vector<std::string> labels = {"X Input", "X Scale", "X Position", "Y Input", "Y Scale", "Y Position",
+										   "Time", "Trigger Input", "Trigger Position", "Color", "Line Width",
+										   "Kaleidoscope Images", "Kaleidoscope Radius", "Color Spread"};
+		nvgFontSize(args.vg, 13);
+		nvgFontFaceId(args.vg, font->handle);
+		nvgTextLetterSpacing(args.vg, -2);
+
+		nvgFillColor(args.vg, nvgRGBA(0xff, 0xff, 0xff, 0x80));
+		auto y = 6.5f;
+		for (auto l : labels) {
+			nvgText(args.vg, mm2px(10.0f), mm2px(y), l.c_str(), NULL);
+			y += 7.5;
+		}
+	}
+
 	void draw(const DrawArgs &args) override {
 		if (!module)
 			return;
 
-		float gainX = std::pow(2.f, std::round(module->params[Scope::X_SCALE_PARAM].getValue())) / 10.f;
-		float gainY = std::pow(2.f, std::round(module->params[Scope::Y_SCALE_PARAM].getValue())) / 10.f;
+		float gainX = std::pow(2.f, module->params[Scope::X_SCALE_PARAM].getValue()) / 10.0f;
+		gainX += module->inputs[Scope::X_SCALE_INPUT].getVoltage() / 10.0f;
+		float gainY = std::pow(2.f, module->params[Scope::Y_SCALE_PARAM].getValue()) / 10.0f;
+		gainY += module->inputs[Scope::Y_SCALE_INPUT].getVoltage() / 10.0f;
 		float offsetX = module->params[Scope::X_POS_PARAM].getValue();
+		offsetX += module->inputs[Scope::X_POS_INPUT].getVoltage();
 		float offsetY = module->params[Scope::Y_POS_PARAM].getValue();
+		offsetY += module->inputs[Scope::Y_POS_INPUT].getVoltage();
 
 		// Draw waveforms
 		if (module->lissajous) {
@@ -515,74 +553,88 @@ struct ScopeDisplay : ModuleLightWidget {
 			int lissajousChannels = std::max(module->channelsX, module->channelsY);
 			for (int c = 0; c < lissajousChannels; c++) {
 				drawWaveform(args,
-										 module->bufferX[c],
-										 offsetX,
-										 gainX,
-										 module->bufferY[c],
-										 offsetY,
-										 gainY,
-										 0,
-										 0,
-										 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
+							 module->bufferX[c],
+							 offsetX,
+							 gainX,
+							 module->bufferY[c],
+							 offsetY,
+							 gainY,
+							 0,
+							 0,
+							 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
 
 				//draw Kaleidoscope rotations;
 				auto unitRotation = (float) (2.0 * M_PI) / (float) module->kaleidoscope.count;
 				auto reflectionCount = !module->kaleidoscope.use ? 0 : module->kaleidoscope.count;
+				auto unitHueChange = (module->params[Scope::KALEIDOSCOPE_COLOR_SPREAD_PARAM].getValue()
+									  + module->inputs[Scope::KALEIDOSCOPE_COLOR_SPREAD_INPUT].getVoltage() / 5.0)
+									 / reflectionCount;
+
 				for (auto i = 0; i < reflectionCount; ++i) {
+					auto hueChange = (i + 1) * unitHueChange;
+					auto reflectionHue = std::fmod(module->hue + hueChange, 1.0f);
 					drawWaveform(args,
-											 module->bufferX[c],
-											 offsetX,
-											 gainX,
-											 module->bufferY[c],
-											 offsetY,
-											 gainY,
-											 module->kaleidoscope.radius,
-											 (i * unitRotation),
-											 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
+								 module->bufferX[c],
+								 offsetX,
+								 -gainX,
+								 module->bufferY[c],
+								 offsetY,
+								 gainY,
+								 module->kaleidoscope.radius,
+								 (i * unitRotation),
+								 nvgHSLA(reflectionHue, 0.5f, 0.5f, 200));
 				}
 			}
 		} else {
 			// Y
 			for (int c = 0; c < module->channelsY; c++) {
 				drawWaveform(args,
-										 NULL,
-										 0,
-										 0,
-										 module->bufferY[c],
-										 offsetY,
-										 gainY,
-										 0,
-										 0,
-										 nvgRGBA(0xe1, 0x02, 0x78, 0xc0));
+							 NULL,
+							 0,
+							 0,
+							 module->bufferY[c],
+							 offsetY,
+							 gainY,
+							 0,
+							 0,
+							 nvgRGBA(0xe1, 0x02, 0x78, 0xc0));
 			}
 
 			// X
 			for (int c = 0; c < module->channelsX; c++) {
 				drawWaveform(args,
-										 NULL,
-										 0,
-										 0,
-										 module->bufferX[c],
-										 offsetX,
-										 gainX,
-										 0,
-										 0,
-										 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
+							 NULL,
+							 0,
+							 0,
+							 module->bufferX[c],
+							 offsetX,
+							 gainX,
+							 0,
+							 0,
+							 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
 			}
 
 			float trigThreshold = module->params[Scope::TRIG_PARAM].getValue();
+			trigThreshold += module->inputs[Scope::TRIG_LEVEL_INPUT].getVoltage();
+			trigThreshold = clamp(trigThreshold, -10.0f, 10.0f);
 			trigThreshold = (trigThreshold + offsetX) * gainX;
 			drawTrig(args, trigThreshold);
 		}
 
 		// Calculate and draw stats
-		if (++statsFrame >= 4) {
-			statsFrame = 0;
-			statsX.calculate(module->bufferX[0], module->channelsX);
-			statsY.calculate(module->bufferY[0], module->channelsY);
+		if (module->params[Scope::SHOW_STATS_PARAM].getValue() > 0.0f) {
+			if (++statsFrame >= 4) {
+				statsFrame = 0;
+				statsX.calculate(module->bufferX[0], module->channelsX);
+				statsY.calculate(module->bufferY[0], module->channelsY);
+			}
+			drawStats(args, Vec(25, 0), "X", &statsX);
+			drawStats(args, Vec(25, box.size.y - 15), "Y", &statsY);
 		}
-		drawStats(args, Vec(25, 0), "X", &statsX);
-		drawStats(args, Vec(25, box.size.y - 15), "Y", &statsY);
+
+		if (module->params[Scope::SHOW_LABELS_PARAM].getValue() > 0.0f) {
+			drawLabels(args);
+		}
 	}
 };
 
@@ -622,6 +674,22 @@ struct LineFadeMenuItem : MenuItem {
 	}
 };
 
+struct ShowStatsMenuItem : MenuItem {
+	Scope *module;
+
+	void onAction(const event::Action &e) override {
+		module->params[Scope::SHOW_STATS_PARAM].setValue(!module->params[Scope::SHOW_STATS_PARAM].getValue());
+	}
+};
+
+struct ShowLabelsMenuItem : MenuItem {
+	Scope *module;
+
+	void onAction(const event::Action &e) override {
+		module->params[Scope::SHOW_LABELS_PARAM].setValue(!module->params[Scope::SHOW_LABELS_PARAM].getValue());
+	}
+};
+
 struct TinyKnob : RoundKnob {
 	TinyKnob() {
 		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/scopeTinyKnob.svg")));
@@ -641,6 +709,12 @@ struct TinyPort : app::SvgPort {
 	}
 };
 
+struct Port2mm : app::SvgPort {
+	Port2mm() {
+		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/scope2mmPort.svg")));
+	}
+};
+
 // Components
 
 struct ScopeWidget : ModuleWidget {
@@ -651,7 +725,7 @@ struct ScopeWidget : ModuleWidget {
 		setModule(module);
 		box.size = Vec(RACK_GRID_WIDTH * 17, RACK_GRID_HEIGHT);
 		{
-			panel = new ScopePanel(nvgRGB(20, 30, 33));
+			panel = new ScopePanel(nvgRGB(5, 5, 30));
 			panel->box.size = box.size;
 			addChild(panel);
 		}
@@ -670,21 +744,29 @@ struct ScopeWidget : ModuleWidget {
 
 		addInput(createInputCentered<TinyPort>(mm2px(Vec(5, 5)), module, Scope::X_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 12.5)), module, Scope::X_SCALE_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 12.5)), module, Scope::X_SCALE_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 20)), module, Scope::X_POS_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 20)), module, Scope::X_POS_INPUT));
 		addInput(createInputCentered<TinyPort>(mm2px(Vec(5, 27.5)), module, Scope::Y_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 35)), module, Scope::Y_SCALE_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 35)), module, Scope::Y_SCALE_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 42.5)), module, Scope::Y_POS_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 42.5)), module, Scope::Y_POS_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 50)), module, Scope::TIME_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 50)), module, Scope::TIME_INPUT));
 		addInput(createInputCentered<TinyPort>(mm2px(Vec(5, 57.5)), module, Scope::TRIG_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 65)), module, Scope::TRIG_PARAM));
-		addInput(createInputCentered<TinyPort>(mm2px(Vec(5, 72.5)), module, Scope::COLOR_INPUT));
-		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 80)), module, Scope::LINE_COLOR_PARAM));
-		addInput(createInputCentered<TinyPort>(mm2px(Vec(5, 87.5)), module, Scope::LINE_WIDTH_INPUT));
-		addParam((createParamCentered<TinyKnob>(mm2px(Vec(5, 95)), module, Scope::LINE_WIDTH_PARAM)));
-		addInput(createInputCentered<TinyPort>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COUNT_INPUT));
-		addParam(createParamCentered<TinySnapKnob>(mm2px(Vec(5, 110)), module, Scope::KALEIDOSCOPE_COUNT_PARAM));
-		addInput(createInputCentered<TinyPort>(mm2px(Vec(5, 117.5)), module, Scope::KALEIDOSCOPE_RADIUS_INPUT));
-		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 125)), module, Scope::KALEIDOSCOPE_RADIUS_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 65)), module, Scope::TRIG_LEVEL_INPUT));
+		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 72.5)), module, Scope::LINE_COLOR_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 72.5)), module, Scope::COLOR_INPUT));
+		addParam((createParamCentered<TinyKnob>(mm2px(Vec(5, 80.0)), module, Scope::LINE_WIDTH_PARAM)));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 80.0)), module, Scope::LINE_WIDTH_INPUT));
+		addParam(createParamCentered<TinySnapKnob>(mm2px(Vec(5, 87.5)), module, Scope::KALEIDOSCOPE_COUNT_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 87.5)), module, Scope::KALEIDOSCOPE_COUNT_INPUT));
+		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 95.0)), module, Scope::KALEIDOSCOPE_RADIUS_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 95.0)), module, Scope::KALEIDOSCOPE_RADIUS_INPUT));
+		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_INPUT));
 	}
 
 	virtual ~ScopeWidget() {
@@ -780,11 +862,25 @@ struct ScopeWidget : ModuleWidget {
 		experimentalLineType->module = module;
 		menu->addChild(experimentalLineType);
 
+		menu->addChild(new MenuEntry);
+
 		LineFadeMenuItem *fade = new LineFadeMenuItem();
 		fade->text = "Fade";
 		fade->rightText = CHECKMARK(module->params[Scope::LINE_FADE_PARAM].getValue());
 		fade->module = module;
 		menu->addChild(fade);
+
+		ShowStatsMenuItem *showStats = new ShowStatsMenuItem();
+		showStats->text = "Show Stats";
+		showStats->rightText = CHECKMARK(module->params[Scope::SHOW_STATS_PARAM].getValue());
+		showStats->module = module;
+		menu->addChild(showStats);
+
+		ShowLabelsMenuItem *showLabels = new ShowLabelsMenuItem();
+		showLabels->text = "Show Labels";
+		showLabels->rightText = CHECKMARK(module->params[Scope::SHOW_LABELS_PARAM].getValue());
+		showLabels->module = module;
+		menu->addChild(showLabels);
 	}
 };
 
