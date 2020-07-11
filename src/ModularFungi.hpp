@@ -18,6 +18,6 @@ extern Model *modelBlank_26HP;
 extern Model *modelBlank_32HP;
 extern Model *modelColor_12HP;
 extern Model *modelLightsOff;
-extern Model *modelLightScope;
+extern Model *modelOpsylloscope;
 //extern Model *modelME;
 

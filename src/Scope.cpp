@@ -393,7 +393,13 @@ struct ScopeDisplay : ModuleLightWidget {
 		//start drawing for current buffer write position
 		//and loop back.
 		assert(module);
-		for (int i = module->bufferIndex - 1; i != module->bufferIndex; i--) {
+
+		// when drawing the buffer, if the line is to fade, start drawing at 2 samples prior
+		// bufferIndex, with full alpha.
+		// when the line is not fading, draw the buffer from end to start to remove flicker.
+		auto startIndex = (bool)module->fade ? module->bufferIndex - 2 : BUFFER_SIZE - 2;
+		auto endIndex = (bool)module->fade ? module->bufferIndex - 1 : -1;
+		for (int i = startIndex; i != endIndex; i--) {
 			if (i < 0)
 				i = BUFFER_SIZE - 1; // loop buffer due to starting at various locations
 
@@ -429,7 +435,7 @@ struct ScopeDisplay : ModuleLightWidget {
 				nvgMoveTo(args.vg, p.x, p.y);
 			} else {
 				auto vectorScale = 0.998f;
-				auto dotScale = 0.9f;
+				auto experimentalScale = 0.9f;
 				switch (module->lineType) {
 					case Scope::LineType::NORMAL_LINE:
 						nvgLineTo(args.vg, p.x, p.y);
@@ -439,7 +445,7 @@ struct ScopeDisplay : ModuleLightWidget {
 						nvgLineTo(args.vg, p.x, p.y);
 						break;
 					case Scope::LineType::EXPERIMENTAL_LINE:
-						nvgMoveTo(args.vg, dotScale * p.x, dotScale * p.y);
+						nvgMoveTo(args.vg, experimentalScale * p.x, experimentalScale * p.y);
 						nvgLineTo(args.vg, p.x, p.y);
 						break;
 					case Scope::NUM_LINES:
@@ -715,6 +721,13 @@ struct Port2mm : app::SvgPort {
 	}
 };
 
+struct Logo : SvgWidget
+{
+	Logo(){
+		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/ModularFungiLogo.svg")));
+	}
+};
+
 // Components
 
 struct ScopeWidget : ModuleWidget {
@@ -767,6 +780,10 @@ struct ScopeWidget : ModuleWidget {
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 95.0)), module, Scope::KALEIDOSCOPE_RADIUS_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_PARAM));
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_INPUT));
+
+		Logo *logo = new Logo();
+		logo->setPosition(mm2px(Vec(0, 110)));
+		addChild(logo);
 	}
 
 	virtual ~ScopeWidget() {
@@ -884,4 +901,4 @@ struct ScopeWidget : ModuleWidget {
 	}
 };
 
-Model *modelLightScope = createModel<Scope, ScopeWidget>("LightScope");
+Model *modelOpsylloscope = createModel<Scope, ScopeWidget>("Opsylloscope");

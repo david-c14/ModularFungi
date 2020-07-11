@@ -83,8 +83,8 @@
 			"tags":["Utility"]
 		},
 		{
-			"slug":"LightScope",
-			"name":"Scope",
+			"slug":"Opsylloscope",
+			"name":"Opsylloscope",
 			"description":"Scope for when the lights are off",
 			"tags":["Utility"]
 		}
