@@ -383,8 +383,10 @@ struct ScopeDisplay : ModuleLightWidget {
 		// when drawing the buffer, if the line is to fade, start drawing at 2 samples prior
 		// bufferIndex, with full alpha.
 		// when the line is not fading, draw the buffer from end to start to remove flicker.
-		auto startIndex = (bool) module->fade ? module->bufferIndex - 2 : BUFFER_SIZE - 2;
-		auto endIndex = (bool) module->fade ? module->bufferIndex - 1 : -1;
+		auto startIndex = (bool) module->fade ? module->bufferIndex - 3 : BUFFER_SIZE - 2;
+		startIndex = clamp (startIndex,0,BUFFER_SIZE-1);
+		auto endIndex = (bool) module->fade ? module->bufferIndex - 2 : 0;
+		endIndex = clamp(endIndex,0,BUFFER_SIZE-1);
 		for (auto i = startIndex; i != endIndex; i--) {
 			if (i < 0)
 				i = BUFFER_SIZE - 1; // loop buffer due to starting at various locations
