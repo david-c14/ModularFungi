@@ -122,6 +122,25 @@ struct LightsOffContainer : widget::Widget {
 	}
 };
 
+
+struct DimParamWidget : ParamWidget {
+	void onButton(const event::Button& e) override { 
+		if (e.button == GLFW_MOUSE_BUTTON_LEFT) {
+			ParamWidget::onButton(e);
+		}
+	}
+
+	void onHoverScroll(const event::HoverScroll& e) override {
+		if (e.scrollDelta.y > 0.f) {
+			paramQuantity->moveScaledValue(0.1f);
+		}
+		else {
+			paramQuantity->moveScaledValue(-0.1f);
+		}
+		e.consume(this);
+	}
+};
+
 struct LightsOffWidget : ModuleWidget {
 	BitMap *bmp;
 	LightsOffContainer *loContainer;
@@ -136,6 +155,11 @@ struct LightsOffWidget : ModuleWidget {
 		bmp->box.size.y = box.size.y;
 		bmp->path = FileName("res/LightsOff.png", 1);
 		addChild(bmp);
+
+		DimParamWidget *dimParamWidget = createParam<DimParamWidget>(Vec(0, 0), module, LightsOffModule::PARAM_DIM);
+		dimParamWidget->box.size.x = box.size.x;
+		dimParamWidget->box.size.y = box.size.y;
+		addParam(dimParamWidget);
 
 		addChild(createLightCentered<TinyLight<WhiteLight>>(Vec(7.5f, 38.0f), module, LightsOffModule::LIGHT_ENABLED));
 
