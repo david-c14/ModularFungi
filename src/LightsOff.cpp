@@ -175,6 +175,17 @@ struct LightsOffWidget : ModuleWidget {
 	void appendContextMenu(Menu *menu) override {
 		LightsOffModule *module = dynamic_cast<LightsOffModule*>(this->module);
 
+		struct ActiveItem : MenuItem {
+			LightsOffModule *module;
+			void onAction(const event::Action &e) override {
+				module->active ^= true;
+			}
+			void step() override {
+				rightText = module->active ? "✔" : "";
+				MenuItem::step();
+			}
+		};
+
 		struct DimSlider : ui::Slider {
 			DimSlider(LightsOffModule *module) {
 				box.size.x = 180.0f;
@@ -184,6 +195,7 @@ struct LightsOffWidget : ModuleWidget {
 
 		menu->addChild(new MenuSeparator());
 		menu->addChild(construct<MenuLabel>(&MenuLabel::text, "Hotkey " RACK_MOD_CTRL_NAME "+Alt+X"));
+		menu->addChild(construct<ActiveItem>(&MenuItem::text, "Active", &ActiveItem::module, module));
 		menu->addChild(new DimSlider(module));
 	}
 };
