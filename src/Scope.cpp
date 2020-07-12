@@ -384,9 +384,9 @@ struct ScopeDisplay : ModuleLightWidget {
 		// bufferIndex, with full alpha.
 		// when the line is not fading, draw the buffer from end to start to remove flicker.
 		auto startIndex = (bool) module->fade ? module->bufferIndex - 3 : BUFFER_SIZE - 2;
-		startIndex = clamp (startIndex,0,BUFFER_SIZE-1);
+		startIndex = clamp(startIndex, 0, BUFFER_SIZE - 1);
 		auto endIndex = (bool) module->fade ? module->bufferIndex - 2 : 0;
-		endIndex = clamp(endIndex,0,BUFFER_SIZE-1);
+		endIndex = clamp(endIndex, 0, BUFFER_SIZE - 1);
 		for (auto i = startIndex; i != endIndex; i--) {
 			if (i < 0)
 				i = BUFFER_SIZE - 1; // loop buffer due to starting at various locations
@@ -668,7 +668,7 @@ struct LineFadeMenuItem : MenuItem {
 
 	void onAction(const event::Action &e) override {
 		module->params[Scope::LINE_FADE_PARAM].setValue
-				(!(bool)module->params[Scope::LINE_FADE_PARAM].getValue());
+				(!(bool) module->params[Scope::LINE_FADE_PARAM].getValue());
 	}
 };
 
@@ -677,7 +677,7 @@ struct ShowStatsMenuItem : MenuItem {
 
 	void onAction(const event::Action &e) override {
 		module->params[Scope::SHOW_STATS_PARAM].setValue
-		(!(bool)module->params[Scope::SHOW_STATS_PARAM].getValue());
+				(!(bool) module->params[Scope::SHOW_STATS_PARAM].getValue());
 	}
 };
 
@@ -686,7 +686,7 @@ struct ShowLabelsMenuItem : MenuItem {
 
 	void onAction(const event::Action &e) override {
 		module->params[Scope::SHOW_LABELS_PARAM].setValue
-		(!(bool)module->params[Scope::SHOW_LABELS_PARAM].getValue());
+				(!(bool) module->params[Scope::SHOW_LABELS_PARAM].getValue());
 	}
 };
 
@@ -712,12 +712,6 @@ struct TinyPort : app::SvgPort {
 struct Port2mm : app::SvgPort {
 	Port2mm() {
 		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/scope2mmPort.svg")));
-	}
-};
-
-struct Logo : SvgWidget {
-	Logo() {
-		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/ModularFungiLogo.svg")));
 	}
 };
 
@@ -774,9 +768,6 @@ struct ScopeWidget : ModuleWidget {
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_PARAM));
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_INPUT));
 
-		auto logo = new Logo();
-		logo->setPosition(mm2px(Vec(0, 110)));
-		addChild(logo);
 	}
 
 	~ScopeWidget() override {
@@ -900,4 +891,4 @@ struct ScopeWidget : ModuleWidget {
 	}
 };
 
-Model* modelOpsylloscope = createModel<Scope, ScopeWidget>("Opsylloscope");
+Model *modelOpsylloscope = createModel<Scope, ScopeWidget>("Opsylloscope");
