@@ -56,6 +56,10 @@ struct LightsOffModule : Module {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 		configParam(PARAM_DIM, 0.0f, 1.0f, 0.8f, "Dim", "%", 0.f, 100.f);
 	}
+
+	bool isActive() {
+		return active && !bypass;
+	}
 };
 
 static LightsOffModule *lightsOffSingleton = NULL;
@@ -65,7 +69,7 @@ struct LightsOffContainer : widget::Widget {
 	LightsOffModule *module;
 
 	void draw(const DrawArgs& args) override {
-		if (module && module->active) {
+		if (module && module->isActive()) {
 			// Dim layer
 			box = parent->box.zeroPos();
 			nvgBeginPath(args.vg);
