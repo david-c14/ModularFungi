@@ -56,6 +56,10 @@ struct LightsOffModule : Module {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 		configParam(PARAM_DIM, 0.0f, 1.0f, 0.8f, "Dim", "%", 0.f, 100.f);
 	}
+
+	bool isActive() {
+		return active && !bypass;
+	}
 };
 
 static LightsOffModule *lightsOffSingleton = NULL;
@@ -65,7 +69,7 @@ struct LightsOffContainer : widget::Widget {
 	LightsOffModule *module;
 
 	void draw(const DrawArgs& args) override {
-		if (module && module->active) {
+		if (module && module->isActive()) {
 			// Dim layer
 			box = parent->box.zeroPos();
 			nvgBeginPath(args.vg);
@@ -175,6 +179,17 @@ struct LightsOffWidget : ModuleWidget {
 	void appendContextMenu(Menu *menu) override {
 		LightsOffModule *module = dynamic_cast<LightsOffModule*>(this->module);
 
+		struct ActiveItem : MenuItem {
+			LightsOffModule *module;
+			void onAction(const event::Action &e) override {
+				module->active ^= true;
+			}
+			void step() override {
+				rightText = module->active ? "✔" : "";
+				MenuItem::step();
+			}
+		};
+
 		struct DimSlider : ui::Slider {
 			DimSlider(LightsOffModule *module) {
 				box.size.x = 180.0f;
@@ -184,6 +199,7 @@ struct LightsOffWidget : ModuleWidget {
 
 		menu->addChild(new MenuSeparator());
 		menu->addChild(construct<MenuLabel>(&MenuLabel::text, "Hotkey " RACK_MOD_CTRL_NAME "+Alt+X"));
+		menu->addChild(construct<ActiveItem>(&MenuItem::text, "Active", &ActiveItem::module, module));
 		menu->addChild(new DimSlider(module));
 	}
 };
