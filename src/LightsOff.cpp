@@ -56,6 +56,10 @@ struct LightsOffModule : Module {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 		configParam(PARAM_DIM, 0.0f, 1.0f, 0.8f, "Dim", "%", 0.f, 100.f);
 	}
+
+	bool isActive() {
+		return active && !bypass;
+	}
 };
 
 static LightsOffModule *lightsOffSingleton = NULL;
@@ -65,7 +69,7 @@ struct LightsOffContainer : widget::Widget {
 	LightsOffModule *module;
 
 	void draw(const DrawArgs& args) override {
-		if (module && module->active) {
+		if (module && module->isActive()) {
 			// Dim layer
 			box = parent->box.zeroPos();
 			nvgBeginPath(args.vg);
@@ -114,10 +118,30 @@ struct LightsOffContainer : widget::Widget {
 	}
 	
 	void onHoverKey(const event::HoverKey &e) override {
-		if (e.action == GLFW_PRESS && e.key == GLFW_KEY_X && (e.mods & RACK_MOD_MASK) == (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) {
+		const char* keyName = glfwGetKeyName(e.key, 0);
+		if (e.action == GLFW_PRESS && keyName && *keyName == 'x' && (e.mods & RACK_MOD_MASK) == (RACK_MOD_CTRL | GLFW_MOD_ALT)) {
 			module->active ^= true;
 		}
 		Widget::onHoverKey(e);
+	}
+};
+
+
+struct DimParamWidget : ParamWidget {
+	void onButton(const event::Button& e) override { 
+		if (e.button == GLFW_MOUSE_BUTTON_LEFT) {
+			ParamWidget::onButton(e);
+		}
+	}
+
+	void onHoverScroll(const event::HoverScroll& e) override {
+		if (e.scrollDelta.y > 0.f) {
+			paramQuantity->moveScaledValue(0.1f);
+		}
+		else {
+			paramQuantity->moveScaledValue(-0.1f);
+		}
+		e.consume(this);
 	}
 };
 
@@ -135,6 +159,11 @@ struct LightsOffWidget : ModuleWidget {
 		bmp->box.size.y = box.size.y;
 		bmp->path = FileName("res/LightsOff.png", 1);
 		addChild(bmp);
+
+		DimParamWidget *dimParamWidget = createParam<DimParamWidget>(Vec(0, 0), module, LightsOffModule::PARAM_DIM);
+		dimParamWidget->box.size.x = box.size.x;
+		dimParamWidget->box.size.y = box.size.y;
+		addParam(dimParamWidget);
 
 		addChild(createLightCentered<TinyLight<WhiteLight>>(Vec(7.5f, 38.0f), module, LightsOffModule::LIGHT_ENABLED));
 
@@ -174,6 +203,17 @@ struct LightsOffWidget : ModuleWidget {
 	void appendContextMenu(Menu *menu) override {
 		LightsOffModule *module = dynamic_cast<LightsOffModule*>(this->module);
 
+		struct ActiveItem : MenuItem {
+			LightsOffModule *module;
+			void onAction(const event::Action &e) override {
+				module->active ^= true;
+			}
+			void step() override {
+				rightText = module->active ? "✔" : "";
+				MenuItem::step();
+			}
+		};
+
 		struct DimSlider : ui::Slider {
 			DimSlider(LightsOffModule *module) {
 				box.size.x = 180.0f;
@@ -182,7 +222,8 @@ struct LightsOffWidget : ModuleWidget {
 		};
 
 		menu->addChild(new MenuSeparator());
-		menu->addChild(construct<MenuLabel>(&MenuLabel::text, "Hotkey Ctrl/Cmd+Alt+X"));
+		menu->addChild(construct<MenuLabel>(&MenuLabel::text, "Hotkey " RACK_MOD_CTRL_NAME "+Alt+X"));
+		menu->addChild(construct<ActiveItem>(&MenuItem::text, "Active", &ActiveItem::module, module));
 		menu->addChild(new DimSlider(module));
 	}
 };
