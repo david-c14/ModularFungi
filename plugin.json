@@ -81,6 +81,12 @@
 			"name":"Lights Off",
 			"description":"Dim the lights in your Rack!",
 			"tags":["Utility"]
+		},
+		{
+			"slug":"Opsylloscope",
+			"name":"Opsylloscope",
+			"description":"Scope for when the lights are off",
+			"tags":["Utility"]
 		}
 	]
 }
