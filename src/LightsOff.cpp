@@ -114,7 +114,8 @@ struct LightsOffContainer : widget::Widget {
 	}
 	
 	void onHoverKey(const event::HoverKey &e) override {
-		if (e.action == GLFW_PRESS && e.key == GLFW_KEY_X && (e.mods & RACK_MOD_MASK) == (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) {
+		const char* keyName = glfwGetKeyName(e.key, 0);
+		if (e.action == GLFW_PRESS && keyName && *keyName == 'x' && (e.mods & RACK_MOD_MASK) == (RACK_MOD_CTRL | GLFW_MOD_ALT)) {
 			module->active ^= true;
 		}
 		Widget::onHoverKey(e);
@@ -182,7 +183,7 @@ struct LightsOffWidget : ModuleWidget {
 		};
 
 		menu->addChild(new MenuSeparator());
-		menu->addChild(construct<MenuLabel>(&MenuLabel::text, "Hotkey Ctrl/Cmd+Alt+X"));
+		menu->addChild(construct<MenuLabel>(&MenuLabel::text, "Hotkey " RACK_MOD_CTRL_NAME "+Alt+X"));
 		menu->addChild(new DimSlider(module));
 	}
 };
