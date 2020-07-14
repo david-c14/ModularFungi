@@ -129,8 +129,11 @@ struct LightsOffContainer : widget::Widget {
 
 struct DimParamWidget : ParamWidget {
 	void onButton(const event::Button& e) override { 
-		if (e.button == GLFW_MOUSE_BUTTON_LEFT) {
-			ParamWidget::onButton(e);
+		// Touch parameter
+		if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT && (e.mods & RACK_MOD_MASK) == 0) {
+			if (paramQuantity) {
+				APP->scene->rack->touchedParam = this;
+			}
 		}
 	}
 
@@ -143,6 +146,9 @@ struct DimParamWidget : ParamWidget {
 		}
 		e.consume(this);
 	}
+
+	void onEnter(const event::Enter& e) override { }
+	void onLeave(const event::Leave& e) override { }
 };
 
 struct LightsOffWidget : ModuleWidget {
