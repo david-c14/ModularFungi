@@ -27,7 +27,8 @@
 //Added use with lights off module, kaleidoscope plots, resizable, line types, line widths & fading lines
 //reworked UI, moved options to context menu.
 
-static const int BUFFER_SIZE = 4096;
+///512 in original scope, 4096 with variable bufferSize
+static const int MAX_BUFFER_SIZE = 4096;
 
 struct Scope : Module {
 	enum ParamIds {
@@ -66,6 +67,7 @@ struct Scope : Module {
 		Y_POS_INPUT,
 		TIME_INPUT,
 		TRIG_LEVEL_INPUT,
+		LINE_TYPE_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -82,12 +84,13 @@ struct Scope : Module {
 		NUM_LINES
 	};
 
-	float bufferX[PORT_MAX_CHANNELS][BUFFER_SIZE] = {};
-	float bufferY[PORT_MAX_CHANNELS][BUFFER_SIZE] = {};
+	float bufferX[PORT_MAX_CHANNELS][MAX_BUFFER_SIZE] = {};
+	float bufferY[PORT_MAX_CHANNELS][MAX_BUFFER_SIZE] = {};
 	int channelsX = 0;
 	int channelsY = 0;
 	int bufferIndex = 0;
 	int frameIndex = 0;
+	int bufferSize = 512;
 
 	//parameters for kaleidoscope
 	struct Kaleidoscope {
@@ -106,7 +109,7 @@ struct Scope : Module {
 	Scope() {
 		widgetWidth.store(RACK_GRID_WIDTH * 20);
 
-		const auto timeBase = (float) BUFFER_SIZE / 6;
+		const auto timeBase = (float) MAX_BUFFER_SIZE / 6;
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 		configParam(X_SCALE_PARAM, -2.f, 8.f, 0.f, "X scale", " ", 1 / 2.f, 5);
 		configParam(X_POS_PARAM, -10.f, 10.f, 0.f, "X position", " ");
@@ -171,7 +174,7 @@ struct Scope : Module {
 		}
 
 		// Add frame to buffer
-		if (bufferIndex < BUFFER_SIZE) {
+		if (bufferIndex < bufferSize) {
 			if (++frameIndex > frameCount) {
 				frameIndex = 0;
 				for (auto c = 0; c < channelsX; c++) {
@@ -185,7 +188,7 @@ struct Scope : Module {
 		}
 
 		// Don't wait for trigger if still filling buffer
-		if (bufferIndex < BUFFER_SIZE) {
+		if (bufferIndex < bufferSize) {
 			return;
 		}
 
@@ -233,6 +236,7 @@ struct Scope : Module {
 	json_t *dataToJson() override {
 		json_t *rootJ = json_object();
 		json_object_set_new(rootJ, "WidgetWidth", json_real(widgetWidth.load()));
+		json_object_set_new(rootJ, "bufferSize", json_integer(bufferSize));
 		return rootJ;
 	}
 
@@ -240,6 +244,10 @@ struct Scope : Module {
 		json_t *ww = json_object_get(rootJ, "WidgetWidth");
 		if (ww)
 			widgetWidth.store((float) json_real_value(ww));
+
+		json_t *bs = json_object_get(rootJ,"bufferSize");
+		if (bs)
+			bufferSize = json_integer_value(bs);
 	}
 };
 
@@ -328,7 +336,7 @@ struct ScopeDisplay : ModuleLightWidget {
 		void calculate(float *buffer, int channels) {
 			vmax = -INFINITY;
 			vmin = INFINITY;
-			for (auto i = 0; i < BUFFER_SIZE * channels; i++) {
+			for (auto i = 0; i < MAX_BUFFER_SIZE * channels; i++) {
 				auto v = buffer[i];
 				vmax = std::fmax(vmax, v);
 				vmin = std::fmin(vmin, v);
@@ -358,11 +366,11 @@ struct ScopeDisplay : ModuleLightWidget {
 
 		//beam fading using a varying alpha
 		auto maxAlpha = 0.99f;
-		auto lightInc = maxAlpha / BUFFER_SIZE;
+		auto lightInc = maxAlpha / (float)module->bufferSize;
 		auto currentAlpha = maxAlpha;
 
 		auto currentLineWidth = module->lineWidth;
-		auto widthInc = module->lineWidth / BUFFER_SIZE;
+		auto widthInc = module->lineWidth / (float)module->bufferSize;;
 
 		auto b = Rect(Vec(0, 15), box.size.minus(Vec(0, 15 * 2)));
 		nvgBeginPath(args.vg);
@@ -383,13 +391,13 @@ struct ScopeDisplay : ModuleLightWidget {
 		// when drawing the buffer, if the line is to fade, start drawing at 2 samples prior
 		// bufferIndex, with full alpha.
 		// when the line is not fading, draw the buffer from end to start to remove flicker.
-		auto startIndex = (bool) module->fade ? module->bufferIndex - 3 : BUFFER_SIZE - 2;
-		startIndex = clamp(startIndex, 0, BUFFER_SIZE - 1);
+		auto startIndex = (bool) module->fade ? module->bufferIndex - 3 : module->bufferSize - 2;
+		startIndex = clamp(startIndex, 0, module->bufferSize - 1);
 		auto endIndex = (bool) module->fade ? module->bufferIndex - 2 : 0;
-		endIndex = clamp(endIndex, 0, BUFFER_SIZE - 1);
+		endIndex = clamp(endIndex, 0, module->bufferSize - 1);
 		for (auto i = startIndex; i != endIndex; i--) {
 			if (i < 0)
-				i = BUFFER_SIZE - 1; // loop buffer due to starting at various locations
+				i = module->bufferSize - 1; // loop buffer due to starting at various locations
 
 			nvgStrokeColor(args.vg, nvgRGBAf(beam.r, beam.g, beam.b, currentAlpha));
 			nvgStrokeWidth(args.vg, currentLineWidth);
@@ -401,7 +409,7 @@ struct ScopeDisplay : ModuleLightWidget {
 			if (bufferX) {
 				v.x = (bufferX[i] + offsetX) * gainX / 2.0f;
 			} else {
-				v.x = (float) i / (BUFFER_SIZE - 1);
+				v.x = (float) i / (module->bufferSize - 1);
 			}
 			v.y = (bufferY[i] + offsetY) * gainY / 2.0f;
 
@@ -419,12 +427,15 @@ struct ScopeDisplay : ModuleLightWidget {
 				p.x = rescale(v.x, 0.f, 1.f, b.pos.x, b.pos.x + b.size.x);
 
 			p.y = rescale(v.y, 0.f, 1.f, b.pos.y + b.size.y, b.pos.y);
-			if (i == BUFFER_SIZE - 1) {
+			if (i == module->bufferSize - 1) {
 				nvgMoveTo(args.vg, p.x, p.y);
 			} else {
 				auto vectorScale = 0.998f;
 				auto experimentalScale = 0.9f;
-				switch ((Scope::LineType) module->params[Scope::LINE_TYPE_PARAM].getValue()) {
+				auto lType =  (int)(module->params[Scope::LINE_TYPE_PARAM].getValue()
+						+ module->inputs[Scope::LINE_TYPE_INPUT].getVoltage());
+				lType = clamp (lType, 0, (int)Scope::LineType::NUM_LINES - 1);
+				switch ((Scope::LineType)lType) {
 					case Scope::LineType::NORMAL_LINE:
 						nvgLineTo(args.vg, p.x, p.y);
 						break;
@@ -515,7 +526,7 @@ struct ScopeDisplay : ModuleLightWidget {
 	void drawLabels(const DrawArgs &args) {
 		std::vector<std::string> labels = {"X Input", "X Scale", "X Position", "Y Input", "Y Scale", "Y Position",
 										   "Time", "Trigger Input", "Trigger Position", "Color", "Line Width",
-										   "Kaleidoscope Images", "Kaleidoscope Radius", "Color Spread"};
+										   "Kaleidoscope Images", "Kaleidoscope Radius", "Color Spread", "Line Type"};
 		nvgFontSize(args.vg, 13);
 		nvgFontFaceId(args.vg, font->handle);
 		nvgTextLetterSpacing(args.vg, -2);
@@ -654,6 +665,15 @@ struct LineTypeMenuItem : MenuItem {
 	}
 };
 
+struct ResolutionMenuItem : MenuItem {
+	Scope *module;
+	int size = 512;
+
+	void onAction(const event::Action &e) override {
+		module->bufferSize = size;
+	}
+};
+
 struct ExternalTriggerMenuItem : MenuItem {
 	Scope *module;
 
@@ -767,6 +787,9 @@ struct ScopeWidget : ModuleWidget {
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 95.0)), module, Scope::KALEIDOSCOPE_RADIUS_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_PARAM));
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_INPUT));
+		addParam(createParamCentered<TinySnapKnob>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_INPUT));
+
 
 	}
 
@@ -841,36 +864,6 @@ struct ScopeWidget : ModuleWidget {
 
 		menu->addChild(new MenuEntry);
 
-		auto *lineTypeLabel = new MenuLabel();
-		lineTypeLabel->text = "LineType";
-		menu->addChild(lineTypeLabel);
-
-		auto *normalLineType = new LineTypeMenuItem();
-		normalLineType->text = "Normal";
-		normalLineType->lineType = Scope::LineType::NORMAL_LINE;
-		normalLineType->rightText = CHECKMARK(module->params[Scope::LINE_TYPE_PARAM].getValue()
-											  == Scope::LineType::NORMAL_LINE);
-		normalLineType->module = module;
-		menu->addChild(normalLineType);
-
-		auto *vectorLineType = new LineTypeMenuItem();
-		vectorLineType->text = "Vector";
-		vectorLineType->lineType = Scope::LineType::VECTOR_LINE;
-		vectorLineType->rightText = CHECKMARK(module->params[Scope::LINE_TYPE_PARAM].getValue()
-											  == Scope::LineType::VECTOR_LINE);
-		vectorLineType->module = module;
-		menu->addChild(vectorLineType);
-
-		auto *experimentalLineType = new LineTypeMenuItem();
-		experimentalLineType->text = "Experimental";
-		experimentalLineType->lineType = Scope::LineType::EXPERIMENTAL_LINE;
-		experimentalLineType->rightText = CHECKMARK(module->params[Scope::LINE_TYPE_PARAM].getValue()
-													== Scope::LineType::EXPERIMENTAL_LINE);
-		experimentalLineType->module = module;
-		menu->addChild(experimentalLineType);
-
-		menu->addChild(new MenuEntry);
-
 		auto *fade = new LineFadeMenuItem();
 		fade->text = "Fade";
 		fade->rightText = CHECKMARK(module->params[Scope::LINE_FADE_PARAM].getValue());
@@ -888,6 +881,40 @@ struct ScopeWidget : ModuleWidget {
 		showLabels->rightText = CHECKMARK(module->params[Scope::SHOW_LABELS_PARAM].getValue());
 		showLabels->module = module;
 		menu->addChild(showLabels);
+
+		menu->addChild(new MenuEntry);
+
+		auto *bufferSizeLabel = new MenuLabel();
+		bufferSizeLabel->text = "Resolution";
+		menu->addChild(bufferSizeLabel);
+
+		auto *resolution512 = new ResolutionMenuItem();
+		resolution512->module = module;
+		resolution512->size = 512;
+		resolution512->text = "Eco";
+		resolution512->rightText = CHECKMARK(module->bufferSize == 512);
+		menu->addChild(resolution512);
+
+		auto *resolution1024 = new ResolutionMenuItem();
+		resolution1024->module = module;
+		resolution1024->size = 1024;
+		resolution1024->text = "Normal";
+		resolution1024->rightText = CHECKMARK(module->bufferSize == 1024);
+		menu->addChild(resolution1024);
+
+		auto *resolution2048 = new ResolutionMenuItem();
+		resolution2048->module = module;
+		resolution2048->size = 2048;
+		resolution2048->text = "Good";
+		resolution2048->rightText = CHECKMARK(module->bufferSize == 2048);
+		menu->addChild(resolution2048);
+
+		auto *resolution4096 = new ResolutionMenuItem();
+		resolution4096->module = module;
+		resolution4096->size = 4096;
+		resolution4096->text = "Ultra";
+		resolution4096->rightText = CHECKMARK(module->bufferSize == 4096);
+		menu->addChild(resolution4096);
 	}
 };
 
