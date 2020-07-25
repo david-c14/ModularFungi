@@ -37,10 +37,10 @@ struct Scope : Module {
 		Y_SCALE_PARAM,
 		Y_POS_PARAM,
 		TIME_PARAM,
-		LISSAJOUS_PARAM,
+		LISSAJOUS_PARAM,  //unused, kept for 1.1.compatibility
 		TRIG_PARAM,
 		EXTERNAL_PARAM,
-		KALEIDOSCOPE_USE_PARAM,
+		KALEIDOSCOPE_USE_PARAM, //unused, kept for 1.1.compatibility
 		KALEIDOSCOPE_COUNT_PARAM,
 		KALEIDOSCOPE_RADIUS_PARAM,
 		KALEIDOSCOPE_COLOR_SPREAD_PARAM,
@@ -50,6 +50,8 @@ struct Scope : Module {
 		LINE_TYPE_PARAM,
 		SHOW_STATS_PARAM,
 		SHOW_LABELS_PARAM,
+		PLOT_TYPE_PARAM,
+		ANTIALIAS_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -68,6 +70,7 @@ struct Scope : Module {
 		TIME_INPUT,
 		TRIG_LEVEL_INPUT,
 		LINE_TYPE_INPUT,
+		PLOT_TYPE_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -79,9 +82,16 @@ struct Scope : Module {
 
 	enum LineType {
 		NORMAL_LINE,
-		EXPERIMENTAL_LINE,
 		VECTOR_LINE,
+		EXPERIMENTAL_LINE,
 		NUM_LINES
+	};
+
+	enum PlotType {
+		NORMAL,
+		LISSAJOUS,
+		KALEIDOSCOPE,
+		NUM_PLOT_TYPES
 	};
 
 	float bufferX[PORT_MAX_CHANNELS][MAX_BUFFER_SIZE] = {};
@@ -131,6 +141,8 @@ struct Scope : Module {
 		configParam(SHOW_STATS_PARAM, 0.0f, 1.0f, 0.0f, "Show Stats");
 		configParam(KALEIDOSCOPE_COLOR_SPREAD_PARAM, 0.0f, 1.0f, 0.0f, "Kaleidoscope Color Spread");
 		configParam(SHOW_LABELS_PARAM, 0.0f, 1.0f, 0.0f, "Show Labels");
+		configParam(PLOT_TYPE_PARAM, 0.0f, NUM_PLOT_TYPES - 1, Scope::PlotType::NORMAL, "Plot Type");
+		configParam(ANTIALIAS_PARAM, 0.0f, 1.0f, 1.0f, "AntiAlias");
 	}
 
 	void onReset() override {
@@ -152,6 +164,29 @@ struct Scope : Module {
 		hue = params[LINE_HUE_PARAM].getValue() + inputs[HUE_INPUT].getVoltage() / 10.0f;
 		lineWidth = params[LINE_WIDTH_PARAM].getValue() + inputs[LINE_WIDTH_INPUT].getVoltage();
 		fade = params[LINE_FADE_PARAM].getValue();
+
+		//PLOT_TYPE_PARAM added after version 1.1.1
+		//KALEIDOSCOPE_USE_PARAM and LISSAJOUS_PARAM are updated for compatibility
+		auto pType = (int) (params[PLOT_TYPE_PARAM].getValue() + inputs[PLOT_TYPE_INPUT].getVoltage() / 3.0f);
+		pType = clamp(pType, 0, NUM_PLOT_TYPES - 1);
+		switch ((PlotType) pType) {
+			case PlotType::NORMAL:
+				params[KALEIDOSCOPE_USE_PARAM].setValue(false);
+				params[LISSAJOUS_PARAM].setValue(false);
+				break;
+			case PlotType::KALEIDOSCOPE:
+				params[KALEIDOSCOPE_USE_PARAM].setValue(true);
+				params[LISSAJOUS_PARAM].setValue(true);
+				break;
+			case PlotType::LISSAJOUS:
+				params[KALEIDOSCOPE_USE_PARAM].setValue(false);
+				params[LISSAJOUS_PARAM].setValue(true);
+				break;
+			default:
+				params[KALEIDOSCOPE_USE_PARAM].setValue(false);
+				params[LISSAJOUS_PARAM].setValue(false);
+				break;
+		}
 
 		// Compute time
 		//updated to use cv
@@ -245,7 +280,7 @@ struct Scope : Module {
 		if (ww)
 			widgetWidth.store((float) json_real_value(ww));
 
-		json_t *bs = json_object_get(rootJ,"bufferSize");
+		json_t *bs = json_object_get(rootJ, "bufferSize");
 		if (bs)
 			bufferSize = json_integer_value(bs);
 	}
@@ -366,11 +401,11 @@ struct ScopeDisplay : ModuleLightWidget {
 
 		//beam fading using a varying alpha
 		auto maxAlpha = 0.99f;
-		auto lightInc = maxAlpha / (float)module->bufferSize;
+		auto lightInc = maxAlpha / (float) module->bufferSize;
 		auto currentAlpha = maxAlpha;
 
 		auto currentLineWidth = module->lineWidth;
-		auto widthInc = module->lineWidth / (float)module->bufferSize;;
+		auto widthInc = module->lineWidth / (float) module->bufferSize;;
 
 		auto b = Rect(Vec(0, 15), box.size.minus(Vec(0, 15 * 2)));
 		nvgBeginPath(args.vg);
@@ -394,7 +429,7 @@ struct ScopeDisplay : ModuleLightWidget {
 		auto startIndex = (bool) module->fade ? module->bufferIndex - 3 : module->bufferSize - 2;
 		startIndex = clamp(startIndex, 0, module->bufferSize - 1);
 		auto endIndex = (bool) module->fade ? module->bufferIndex - 2 : 0;
-		endIndex = clamp(endIndex, 0, module->bufferSize - 1);
+		endIndex = clamp(endIndex, 1, module->bufferSize - 1);
 		for (auto i = startIndex; i != endIndex; i--) {
 			if (i < 0)
 				i = module->bufferSize - 1; // loop buffer due to starting at various locations
@@ -432,10 +467,10 @@ struct ScopeDisplay : ModuleLightWidget {
 			} else {
 				auto vectorScale = 0.998f;
 				auto experimentalScale = 0.9f;
-				auto lType =  (int)(module->params[Scope::LINE_TYPE_PARAM].getValue()
-						+ module->inputs[Scope::LINE_TYPE_INPUT].getVoltage());
-				lType = clamp (lType, 0, (int)Scope::LineType::NUM_LINES - 1);
-				switch ((Scope::LineType)lType) {
+				auto lType = (int) (module->params[Scope::LINE_TYPE_PARAM].getValue()
+									+ module->inputs[Scope::LINE_TYPE_INPUT].getVoltage());
+				lType = clamp(lType, 0, (int) Scope::LineType::NUM_LINES - 1);
+				switch ((Scope::LineType) lType) {
 					case Scope::LineType::NORMAL_LINE:
 						nvgLineTo(args.vg, p.x, p.y);
 						break;
@@ -526,7 +561,8 @@ struct ScopeDisplay : ModuleLightWidget {
 	void drawLabels(const DrawArgs &args) {
 		std::vector<std::string> labels = {"X Input", "X Scale", "X Position", "Y Input", "Y Scale", "Y Position",
 										   "Time", "Trigger Input", "Trigger Position", "Color", "Line Width",
-										   "Kaleidoscope Images", "Kaleidoscope Radius", "Color Spread", "Line Type"};
+										   "Kaleidoscope Images", "Kaleidoscope Radius", "Color Spread", "Line Type",
+										   "Plot Type"};
 		nvgFontSize(args.vg, 13);
 		nvgFontFaceId(args.vg, font->handle);
 		nvgTextLetterSpacing(args.vg, -2);
@@ -542,7 +578,7 @@ struct ScopeDisplay : ModuleLightWidget {
 	void draw(const DrawArgs &args) override {
 		if (!module)
 			return;
-
+		nvgShapeAntiAlias(args.vg, module->params[Scope::ANTIALIAS_PARAM].getValue());
 		auto gainX = std::pow(2.f, module->params[Scope::X_SCALE_PARAM].getValue()) / 10.0f;
 		gainX += module->inputs[Scope::X_SCALE_INPUT].getVoltage() / 10.0f;
 		auto gainY = std::pow(2.f, module->params[Scope::Y_SCALE_PARAM].getValue()) / 10.0f;
@@ -592,7 +628,7 @@ struct ScopeDisplay : ModuleLightWidget {
 								 nvgHSLA(reflectionHue, 0.5f, 0.5f, 200));
 				}
 			}
-		} else {
+		} else {  //draw normal
 			// Y
 			for (auto c = 0; c < module->channelsY; c++) {
 				drawWaveform(args,
@@ -647,12 +683,10 @@ struct ScopeDisplay : ModuleLightWidget {
 
 struct PlotTypeMenuItem : MenuItem {
 	Scope *module;
-	bool lissajous = false;
-	bool kaleidoscope = false;
+	Scope::PlotType plotType = Scope::PlotType::NORMAL;
 
 	void onAction(const event::Action &e) override {
-		module->params[Scope::LISSAJOUS_PARAM].setValue(lissajous);
-		module->params[Scope::KALEIDOSCOPE_USE_PARAM].setValue(kaleidoscope);
+		module->params[Scope::PLOT_TYPE_PARAM].setValue(plotType);
 	}
 };
 
@@ -707,6 +741,15 @@ struct ShowLabelsMenuItem : MenuItem {
 	void onAction(const event::Action &e) override {
 		module->params[Scope::SHOW_LABELS_PARAM].setValue
 				(!(bool) module->params[Scope::SHOW_LABELS_PARAM].getValue());
+	}
+};
+
+struct AntiAliasMenuItem : MenuItem {
+	Scope *module;
+
+	void onAction(const event::Action &e) override {
+		module->params[Scope::ANTIALIAS_PARAM].setValue
+				(!(bool) module->params[Scope::ANTIALIAS_PARAM].getValue());
 	}
 };
 
@@ -789,8 +832,8 @@ struct ScopeWidget : ModuleWidget {
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_INPUT));
 		addParam(createParamCentered<TinySnapKnob>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_PARAM));
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_INPUT));
-
-
+		addParam(createParamCentered<TinySnapKnob>(mm2px(Vec(5, 117.5)), module, Scope::PLOT_TYPE_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 117.5)), module, Scope::PLOT_TYPE_INPUT));
 	}
 
 	~ScopeWidget() override {
@@ -824,31 +867,58 @@ struct ScopeWidget : ModuleWidget {
 		menu->addChild(plotTypeLabel);
 
 		auto *normalPlotType = new PlotTypeMenuItem();
-		normalPlotType->kaleidoscope = false;
-		normalPlotType->lissajous = false;
+		normalPlotType->plotType = Scope::PlotType::NORMAL;
 		normalPlotType->text = "Normal";
-		normalPlotType->rightText = CHECKMARK(module->params[Scope::LISSAJOUS_PARAM].getValue() == false
-											  && module->params[Scope::KALEIDOSCOPE_USE_PARAM].getValue() == false);
+		normalPlotType->rightText = CHECKMARK(
+				module->params[Scope::PLOT_TYPE_PARAM].getValue() == Scope::PlotType::NORMAL);
 		normalPlotType->module = module;
 		menu->addChild(normalPlotType);
 
 		auto *lissajousPlotType = new PlotTypeMenuItem();
-		lissajousPlotType->kaleidoscope = false;
-		lissajousPlotType->lissajous = true;
+		lissajousPlotType->plotType = Scope::PlotType::LISSAJOUS;
 		lissajousPlotType->text = "Lissajous";
-		lissajousPlotType->rightText = CHECKMARK(module->params[Scope::LISSAJOUS_PARAM].getValue() == true
-												 && module->params[Scope::KALEIDOSCOPE_USE_PARAM].getValue() == false);
+		lissajousPlotType->rightText = CHECKMARK(
+				module->params[Scope::PLOT_TYPE_PARAM].getValue() == Scope::PlotType::LISSAJOUS);
 		lissajousPlotType->module = module;
 		menu->addChild(lissajousPlotType);
 
 		auto *kaleidoscope = new PlotTypeMenuItem();
-		kaleidoscope->kaleidoscope = true;
-		kaleidoscope->lissajous = true;
+		kaleidoscope->plotType = Scope::PlotType::KALEIDOSCOPE;
 		kaleidoscope->text = "Kaleidoscope";
-		kaleidoscope->rightText = CHECKMARK(module->params[Scope::LISSAJOUS_PARAM].getValue() == true
-											&& module->params[Scope::KALEIDOSCOPE_USE_PARAM].getValue() == true);
+		kaleidoscope->rightText = CHECKMARK(
+				module->params[Scope::PLOT_TYPE_PARAM].getValue() == Scope::PlotType::KALEIDOSCOPE);
 		kaleidoscope->module = module;
 		menu->addChild(kaleidoscope);
+
+		menu->addChild(new MenuEntry);
+
+		auto *lineTypeLabel = new MenuLabel();
+		lineTypeLabel->text = "LineType";
+		menu->addChild(lineTypeLabel);
+
+		auto *normalLineType = new LineTypeMenuItem();
+		normalLineType->text = "Normal";
+		normalLineType->lineType = Scope::LineType::NORMAL_LINE;
+		normalLineType->rightText = CHECKMARK(module->params[Scope::LINE_TYPE_PARAM].getValue()
+											  == Scope::LineType::NORMAL_LINE);
+		normalLineType->module = module;
+		menu->addChild(normalLineType);
+
+		auto *vectorLineType = new LineTypeMenuItem();
+		vectorLineType->text = "Vector";
+		vectorLineType->lineType = Scope::LineType::VECTOR_LINE;
+		vectorLineType->rightText = CHECKMARK(module->params[Scope::LINE_TYPE_PARAM].getValue()
+											  == Scope::LineType::VECTOR_LINE);
+		vectorLineType->module = module;
+		menu->addChild(vectorLineType);
+
+		auto *experimentalLineType = new LineTypeMenuItem();
+		experimentalLineType->text = "Experimental";
+		experimentalLineType->lineType = Scope::LineType::EXPERIMENTAL_LINE;
+		experimentalLineType->rightText = CHECKMARK(module->params[Scope::LINE_TYPE_PARAM].getValue()
+													== Scope::LineType::EXPERIMENTAL_LINE);
+		experimentalLineType->module = module;
+		menu->addChild(experimentalLineType);
 
 		menu->addChild(new MenuEntry);
 
@@ -882,10 +952,16 @@ struct ScopeWidget : ModuleWidget {
 		showLabels->module = module;
 		menu->addChild(showLabels);
 
+		auto *antiAlias = new AntiAliasMenuItem();
+		antiAlias->module = module;
+		antiAlias->text = "AntiAlias";
+		antiAlias->rightText = CHECKMARK(module->params[Scope::ANTIALIAS_PARAM].getValue());
+		menu->addChild(antiAlias);
+
 		menu->addChild(new MenuEntry);
 
 		auto *bufferSizeLabel = new MenuLabel();
-		bufferSizeLabel->text = "Resolution";
+		bufferSizeLabel->text = "Performance";
 		menu->addChild(bufferSizeLabel);
 
 		auto *resolution512 = new ResolutionMenuItem();
