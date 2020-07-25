@@ -362,6 +362,7 @@ struct ScopeDisplay : ModuleLightWidget {
 	Scope *module;
 	int statsFrame = 0;
 	std::shared_ptr<Font> font;
+	Vec lastCordinate;
 
 	struct Stats {
 		float vpp = 0.f;
@@ -407,6 +408,7 @@ struct ScopeDisplay : ModuleLightWidget {
 		auto currentLineWidth = module->lineWidth;
 		auto widthInc = module->lineWidth / (float) module->bufferSize;;
 
+
 		auto b = Rect(Vec(0, 15), box.size.minus(Vec(0, 15 * 2)));
 		nvgBeginPath(args.vg);
 		nvgScissor(args.vg, b.pos.x, b.pos.y, b.size.x, b.size.y);
@@ -430,6 +432,8 @@ struct ScopeDisplay : ModuleLightWidget {
 		startIndex = clamp(startIndex, 0, module->bufferSize - 1);
 		auto endIndex = (bool) module->fade ? module->bufferIndex - 2 : 0;
 		endIndex = clamp(endIndex, 1, module->bufferSize - 1);
+
+
 		for (auto i = startIndex; i != endIndex; i--) {
 			if (i < 0)
 				i = module->bufferSize - 1; // loop buffer due to starting at various locations
@@ -464,6 +468,7 @@ struct ScopeDisplay : ModuleLightWidget {
 			p.y = rescale(v.y, 0.f, 1.f, b.pos.y + b.size.y, b.pos.y);
 			if (i == module->bufferSize - 1) {
 				nvgMoveTo(args.vg, p.x, p.y);
+				lastCordinate = p;
 			} else {
 				auto vectorScale = 0.998f;
 				auto experimentalScale = 0.9f;
@@ -471,13 +476,31 @@ struct ScopeDisplay : ModuleLightWidget {
 									+ module->inputs[Scope::LINE_TYPE_INPUT].getVoltage());
 				lType = clamp(lType, 0, (int) Scope::LineType::NUM_LINES - 1);
 				switch ((Scope::LineType) lType) {
-					case Scope::LineType::NORMAL_LINE:
+					case Scope::LineType::NORMAL_LINE: {
+						//morph between normal and vector lines
+						auto normVecCoeff = (module->params[Scope::LINE_TYPE_PARAM].getValue()
+											 + module->inputs[Scope::LINE_TYPE_INPUT].getVoltage())
+											- (int) Scope::LineType::NORMAL_LINE;
+						Vec intermediate;
+						intermediate.x = normVecCoeff * (p.x - lastCordinate.x) + lastCordinate.x;
+						intermediate.y = normVecCoeff * (p.y - lastCordinate.y) + lastCordinate.y;
+						if (i != startIndex)
+							nvgMoveTo(args.vg, intermediate.x, intermediate.y);
+
 						nvgLineTo(args.vg, p.x, p.y);
 						break;
-					case Scope::LineType::VECTOR_LINE:
-						nvgMoveTo(args.vg, vectorScale * p.x, vectorScale * p.y);
+					}
+					case Scope::LineType::VECTOR_LINE: {
+						//morph between vector and experimental line types
+						auto vecExprCoeff = (module->params[Scope::LINE_TYPE_PARAM].getValue()
+											 + module->inputs[Scope::LINE_TYPE_INPUT].getVoltage())
+											- (int) Scope::LineType::VECTOR_LINE;
+						auto scale = vecExprCoeff * (experimentalScale - vectorScale) + vectorScale;
+
+						nvgMoveTo(args.vg, scale * p.x, scale * p.y);
 						nvgLineTo(args.vg, p.x, p.y);
 						break;
+					}
 					case Scope::LineType::EXPERIMENTAL_LINE:
 						nvgMoveTo(args.vg, experimentalScale * p.x, experimentalScale * p.y);
 						nvgLineTo(args.vg, p.x, p.y);
@@ -488,10 +511,12 @@ struct ScopeDisplay : ModuleLightWidget {
 					default:
 						assert(false);
 				}
+				lastCordinate = p;
 			}
 			nvgStroke(args.vg);
 			nvgBeginPath(args.vg);
 			nvgMoveTo(args.vg, p.x, p.y);
+			lastCordinate = p;
 		}
 		nvgResetTransform(args.vg);
 		nvgResetScissor(args.vg);
@@ -830,7 +855,7 @@ struct ScopeWidget : ModuleWidget {
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 95.0)), module, Scope::KALEIDOSCOPE_RADIUS_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_PARAM));
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_INPUT));
-		addParam(createParamCentered<TinySnapKnob>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_PARAM));
+		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_PARAM));
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_INPUT));
 		addParam(createParamCentered<TinySnapKnob>(mm2px(Vec(5, 117.5)), module, Scope::PLOT_TYPE_PARAM));
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 117.5)), module, Scope::PLOT_TYPE_INPUT));
