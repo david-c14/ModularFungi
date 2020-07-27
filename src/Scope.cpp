@@ -1,8 +1,3 @@
-#include <cstring>
-#include <memory>
-#include <atomic>
-#include "ModularFungi.hpp"
-
 //Copyright (c) 2018 Andrew Belt and licensed under BSD-3-Clause by Andrew Belt
 
 //Permission is hereby granted, free of charge, to any person obtaining a copy of this
@@ -26,6 +21,14 @@
 //Modified by Dave French 2020
 //Added use with lights off module, kaleidoscope plots, resizable, line types, line widths & fading lines
 //reworked UI, moved options to context menu.
+
+//Popout window code by Richie Hindle
+
+#include <cstring>
+#include <memory>
+#include <atomic>
+#include "ModularFungi.hpp"
+
 
 ///512 in original scope, 4096 with variable bufferSize
 static const int MAX_BUFFER_SIZE = 4096;
@@ -51,7 +54,6 @@ struct Scope : Module {
 		SHOW_STATS_PARAM,
 		SHOW_LABELS_PARAM,
 		PLOT_TYPE_PARAM,
-		ANTIALIAS_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -142,7 +144,6 @@ struct Scope : Module {
 		configParam(KALEIDOSCOPE_COLOR_SPREAD_PARAM, 0.0f, 1.0f, 0.0f, "Kaleidoscope Color Spread");
 		configParam(SHOW_LABELS_PARAM, 0.0f, 1.0f, 0.0f, "Show Labels");
 		configParam(PLOT_TYPE_PARAM, 0.0f, NUM_PLOT_TYPES - 1, Scope::PlotType::NORMAL, "Plot Type");
-		configParam(ANTIALIAS_PARAM, 0.0f, 1.0f, 1.0f, "AntiAlias");
 	}
 
 	void onReset() override {
@@ -288,6 +289,13 @@ struct Scope : Module {
 
 // USER INTERFACE  ****************
 
+/// interface to be implemented by module widget for popout window
+struct IPopupWindowOwner
+{
+	virtual void IPopupWindowOwner_showWindow() = 0;
+	virtual void IPopupWindowOwner_hideWindow() = 0;
+};
+
 /// Placed on right of module, allow resizing of parent widget via drag
 struct ResizeTab : OpaqueWidget {
 	Vec position = {};
@@ -363,6 +371,7 @@ struct ScopeDisplay : ModuleLightWidget {
 	int statsFrame = 0;
 	std::shared_ptr<Font> font;
 	Vec lastCordinate;
+	bool externalWindow = false;
 
 	struct Stats {
 		float vpp = 0.f;
@@ -396,7 +405,8 @@ struct ScopeDisplay : ModuleLightWidget {
 					  float gainY,
 					  float kRadius = 0.0f,
 					  float kRotation = 0.0f,
-					  NVGcolor beam = {1.0f, 1.0f, 1.0f, 1.0f}) {
+					  NVGcolor beam = {1.0f, 1.0f, 1.0f, 1.0f},
+					  Rect bounds = {0,0,1,1}) {
 		assert(bufferY);
 		nvgSave(args.vg);
 
@@ -409,13 +419,13 @@ struct ScopeDisplay : ModuleLightWidget {
 		auto widthInc = module->lineWidth / (float) module->bufferSize;;
 
 
-		auto b = Rect(Vec(0, 15), box.size.minus(Vec(0, 15 * 2)));
+		auto b = Rect(Vec(0, 15), bounds.size.minus(Vec(0, 15 * 2)));
 		nvgBeginPath(args.vg);
 		nvgScissor(args.vg, b.pos.x, b.pos.y, b.size.x, b.size.y);
-		nvgTranslate(args.vg, kRadius * simd::cos(kRotation) + box.size.x / 2.0f,
-					 kRadius * simd::sin(kRotation) - (box.size.y - 30) / 2.0f);
+		nvgTranslate(args.vg, kRadius * simd::cos(kRotation) + bounds.size.x / 2.0f,
+					 kRadius * simd::sin(kRotation) - (bounds.size.y - 30) / 2.0f);
 		if (!(bool) module->params[Scope::LISSAJOUS_PARAM].getValue())
-			nvgTranslate(args.vg, -box.size.x / 2.0f, 0);
+			nvgTranslate(args.vg, -bounds.size.x / 2.0f, 0);
 
 		nvgLineCap(args.vg, NVG_BUTT);
 		nvgMiterLimit(args.vg, 2.f);
@@ -523,12 +533,12 @@ struct ScopeDisplay : ModuleLightWidget {
 		nvgRestore(args.vg);
 	}
 
-	void drawTrig(const DrawArgs &args, float value) {
-		auto b = Rect(Vec(0, 15), box.size.minus(Vec(0, 15 * 2)));
+	void drawTrig(const DrawArgs &args, float value, Rect bounds) {
+		auto b = Rect(Vec(0, 15), bounds.size.minus(Vec(0, 15 * 2)));
 		nvgScissor(args.vg, b.pos.x, b.pos.y, b.size.x, b.size.y);
 
 		value = value / 2.f + 0.5f;
-		auto p = Vec(box.size.x, b.pos.y + b.size.y * (1.f - value));
+		auto p = Vec(bounds.size.x, b.pos.y + b.size.y * (1.f - value));
 
 		// Draw line
 		nvgStrokeColor(args.vg, nvgRGBA(0xff, 0xff, 0xff, 0x10));
@@ -603,7 +613,28 @@ struct ScopeDisplay : ModuleLightWidget {
 	void draw(const DrawArgs &args) override {
 		if (!module)
 			return;
-		nvgShapeAntiAlias(args.vg, module->params[Scope::ANTIALIAS_PARAM].getValue());
+		if (!externalWindow)
+			drawBounds(args, box);
+
+		// Calculate and draw stats
+		if ((bool) module->params[Scope::SHOW_STATS_PARAM].getValue()) {
+			if (++statsFrame >= 4) {
+				statsFrame = 0;
+				statsX.calculate(module->bufferX[0], module->channelsX);
+				statsY.calculate(module->bufferY[0], module->channelsY);
+			}
+			drawStats(args, Vec(25, 0), "X", &statsX);
+			drawStats(args, Vec(25, box.size.y - 15), "Y", &statsY);
+		}
+
+		if ((bool) module->params[Scope::SHOW_LABELS_PARAM].getValue()) {
+			drawLabels(args);
+		}
+
+		LightWidget::draw(args);
+	}
+
+	void drawBounds(const DrawArgs &args, Rect bounds) {
 		auto gainX = std::pow(2.f, module->params[Scope::X_SCALE_PARAM].getValue()) / 10.0f;
 		gainX += module->inputs[Scope::X_SCALE_INPUT].getVoltage() / 10.0f;
 		auto gainY = std::pow(2.f, module->params[Scope::Y_SCALE_PARAM].getValue()) / 10.0f;
@@ -627,7 +658,8 @@ struct ScopeDisplay : ModuleLightWidget {
 							 gainY,
 							 0,
 							 0,
-							 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
+							 nvgHSLA(module->hue, 0.5f, 0.5f, 200),
+							 bounds);
 
 				//draw Kaleidoscope rotations;
 				auto unitRotation = (float) (2.0 * M_PI) / (float) module->kaleidoscope.count;
@@ -650,7 +682,8 @@ struct ScopeDisplay : ModuleLightWidget {
 								 gainY,
 								 module->kaleidoscope.radius,
 								 (i * unitRotation),
-								 nvgHSLA(reflectionHue, 0.5f, 0.5f, 200));
+								 nvgHSLA(reflectionHue, 0.5f, 0.5f, 200),
+								 bounds);
 				}
 			}
 		} else {  //draw normal
@@ -665,7 +698,8 @@ struct ScopeDisplay : ModuleLightWidget {
 							 gainY,
 							 0,
 							 0,
-							 nvgRGBA(0xe1, 0x02, 0x78, 0xc0));
+							 nvgRGBA(0xe1, 0x02, 0x78, 0xc0),
+							 bounds);
 			}
 
 			// X
@@ -679,30 +713,32 @@ struct ScopeDisplay : ModuleLightWidget {
 							 gainX,
 							 0,
 							 0,
-							 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
+							 nvgHSLA(module->hue, 0.5f, 0.5f, 200),
+							 bounds);
 			}
 
 			auto trigThreshold = module->params[Scope::TRIG_PARAM].getValue();
 			trigThreshold += module->inputs[Scope::TRIG_LEVEL_INPUT].getVoltage();
 			trigThreshold = clamp(trigThreshold, -10.0f, 10.0f);
 			trigThreshold = (trigThreshold + offsetX) * gainX;
-			drawTrig(args, trigThreshold);
+			drawTrig(args, trigThreshold, bounds);
 		}
+	}
+};
 
-		// Calculate and draw stats
-		if ((bool) module->params[Scope::SHOW_STATS_PARAM].getValue()) {
-			if (++statsFrame >= 4) {
-				statsFrame = 0;
-				statsX.calculate(module->bufferX[0], module->channelsX);
-				statsY.calculate(module->bufferY[0], module->channelsY);
-			}
-			drawStats(args, Vec(25, 0), "X", &statsX);
-			drawStats(args, Vec(25, box.size.y - 15), "Y", &statsY);
-		}
+//Context menus
 
-		if ((bool) module->params[Scope::SHOW_LABELS_PARAM].getValue()) {
-			drawLabels(args);
-		}
+struct ShowWindowMenuItem : MenuItem {
+	IPopupWindowOwner* windowOwner;
+	void onAction(const event::Action& e) override {
+		windowOwner->IPopupWindowOwner_showWindow();
+	}
+};
+
+struct HideWindowMenuItem : MenuItem {
+	IPopupWindowOwner* windowOwner;
+	void onAction(const event::Action& e) override {
+		windowOwner->IPopupWindowOwner_hideWindow();
 	}
 };
 
@@ -769,15 +805,6 @@ struct ShowLabelsMenuItem : MenuItem {
 	}
 };
 
-struct AntiAliasMenuItem : MenuItem {
-	Scope *module;
-
-	void onAction(const event::Action &e) override {
-		module->params[Scope::ANTIALIAS_PARAM].setValue
-				(!(bool) module->params[Scope::ANTIALIAS_PARAM].getValue());
-	}
-};
-
 struct TinyKnob : RoundKnob {
 	TinyKnob() {
 		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/scopeTinyKnob.svg")));
@@ -805,9 +832,12 @@ struct Port2mm : app::SvgPort {
 
 // Components
 
-struct ScopeWidget : ModuleWidget {
+struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 	ResizeTab rt;
 	ScopeDisplay *display;
+	GLFWwindow* _window = nullptr;  // Handle to the popup window.
+	NVGcontext* _vg = nullptr;		// For painting into the popup window.
+	std::shared_ptr<Font> _font;	//
 
 	ScopeWidget(Scope *module) {
 		setModule(module);
@@ -863,9 +893,52 @@ struct ScopeWidget : ModuleWidget {
 
 	~ScopeWidget() override {
 		removeChild(&rt);
+		// Hide the pop out window if we have one
+		IPopupWindowOwner_hideWindow();
 	}
 
+
 	void step() override {
+		//pop-out window is handled here, I would I ppreferred ScopeDisplay::draw()
+		//but this only updates the external window if the ModuleWidget is displayed
+		//zooming and scrolling in the main window can stop rendering of the external
+		//window
+		if (_window) {
+			display->externalWindow = true;
+			// Paint the popup window.
+			glfwMakeContextCurrent(_window);
+
+			// Get the size of the popup window, both the window and the framebuffer.
+			int winWidth, winHeight;
+			int fbWidth, fbHeight;
+			float pxRatio;
+			glfwGetWindowSize(_window, &winWidth, &winHeight);
+			glfwGetFramebufferSize(_window, &fbWidth, &fbHeight);
+			pxRatio = (float)fbWidth / (float)winWidth;
+
+			// Start painting.
+			glViewport(0, 0, fbWidth, fbHeight);
+			glClearColor(0, 0, 0, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+			nvgBeginFrame(_vg, (float)winWidth, (float)winHeight, pxRatio);
+
+			DrawArgs context;
+			context.vg = _vg;
+			display->drawBounds(context, Rect(0, 0, fbWidth, fbHeight));
+
+			// Finished painting.
+			nvgEndFrame(_vg);
+			glfwSwapBuffers(_window);
+			glfwMakeContextCurrent(APP->window->win);
+
+			// If the user has clicked the window's Close button, close it.
+			if (glfwWindowShouldClose(_window)) {
+				IPopupWindowOwner_hideWindow();
+			}
+		}
+		else
+			display->externalWindow=false;
+
 		if (box.size.x != panel->box.size.x) { // ui resized
 			if (module)
 				((Scope *) (module))->widgetWidth.store(box.size.x);
@@ -882,8 +955,59 @@ struct ScopeWidget : ModuleWidget {
 		ModuleWidget::step();
 	}
 
+	void IPopupWindowOwner_showWindow() override {
+		if (_window == nullptr) {
+			// Tell GLFW the properties of the window we want to create.
+			glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
+			glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+			glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+
+			// Create the window.
+			_window = glfwCreateWindow(400, 300, "Opsylloscope", NULL, NULL);
+
+			// Don't wait for vsync when rendering 'cos it slows down the Rack UI thread.
+			glfwMakeContextCurrent(_window);
+			glfwSwapInterval(0);
+
+			// If you want your window to stay on top of other windows.
+//			glfwSetWindowAttrib(_window, GLFW_FLOATING, true);
+
+			// Create a NanoVG context for painting the popup window.
+//			_vg = nvgCreateGL2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
+			_vg = nvgCreateGL2(0);
+
+			// Hand OpenGL back to Rack.
+			glfwMakeContextCurrent(APP->window->win);
+		}
+	}
+
+	void IPopupWindowOwner_hideWindow() override {
+		if (_window != nullptr) {
+			// Destroy the window and its NanoVG context.
+			glfwMakeContextCurrent(_window);
+			nvgDeleteGL2(_vg);
+			glfwDestroyWindow(_window);
+			glfwMakeContextCurrent(APP->window->win);
+			_window = nullptr;
+		}
+	}
+
 	void appendContextMenu(Menu *menu) override {
 		auto *module = dynamic_cast<Scope *> (this->module);
+
+		menu->addChild(new MenuEntry);
+
+		if (_window == nullptr) {
+			ShowWindowMenuItem* showWindowMenuItem = new ShowWindowMenuItem;
+			showWindowMenuItem->text = "Display in pop-out window";
+			showWindowMenuItem->windowOwner = this;
+			menu->addChild(showWindowMenuItem);
+		} else {
+			HideWindowMenuItem* hideWindowMenuItem = new HideWindowMenuItem;
+			hideWindowMenuItem->text = "Hide pop-out window";
+			hideWindowMenuItem->windowOwner = this;
+			menu->addChild(hideWindowMenuItem);
+		}
 
 		menu->addChild(new MenuEntry);
 
@@ -976,12 +1100,6 @@ struct ScopeWidget : ModuleWidget {
 		showLabels->rightText = CHECKMARK(module->params[Scope::SHOW_LABELS_PARAM].getValue());
 		showLabels->module = module;
 		menu->addChild(showLabels);
-
-		auto *antiAlias = new AntiAliasMenuItem();
-		antiAlias->module = module;
-		antiAlias->text = "AntiAlias";
-		antiAlias->rightText = CHECKMARK(module->params[Scope::ANTIALIAS_PARAM].getValue());
-		menu->addChild(antiAlias);
 
 		menu->addChild(new MenuEntry);
 
