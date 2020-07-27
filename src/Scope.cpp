@@ -29,6 +29,11 @@
 #include <atomic>
 #include "ModularFungi.hpp"
 
+// Get the GLFW API.
+#define GLEW_STATIC
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+
 
 ///512 in original scope, 4096 with variable bufferSize
 static const int MAX_BUFFER_SIZE = 4096;
@@ -899,7 +904,7 @@ struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 
 
 	void step() override {
-		//pop-out window is handled here, I would I ppreferred ScopeDisplay::draw()
+		//pop-out window is handled here, I would have preferred ScopeDisplay::draw()
 		//but this only updates the external window if the ModuleWidget is displayed
 		//zooming and scrolling in the main window can stop rendering of the external
 		//window

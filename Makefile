@@ -20,6 +20,11 @@ DISTRIBUTABLES += $(wildcard LICENSE*) res
 
 # If RACK_DIR is not defined when calling the Makefile, default to two levels above
 RACK_DIR ?= ../..
+include $(RACK_DIR)/arch.mk
+
+ifdef ARCH_WIN
+    LDFLAGS += -lopengl32
+endif
 
 # Include the VCV Rack plugin Makefile framework
 include $(RACK_DIR)/plugin.mk
