@@ -36,7 +36,10 @@
 
 
 ///512 in original scope, 4096 with variable bufferSize
-static const int MAX_BUFFER_SIZE = 4096;
+// This improves the drawing resolution, but reduces performance
+// The size of the buffer use is chooses by the performace options
+// in the context menu
+static const auto MAX_BUFFER_SIZE = 4096;
 
 struct Scope : Module {
 	enum ParamIds {
@@ -347,6 +350,7 @@ struct ResizeTab : OpaqueWidget {
 
 // No svg background is used
 // ScopePanel is used to draw background and border
+// allowing for resizeable widget
 struct ScopePanel : Widget {
 	Widget *panelBorder = nullptr;
 	NVGcolor backGroundColor;
@@ -358,6 +362,7 @@ struct ScopePanel : Widget {
 	}
 
 	void step() override {
+		//
 		panelBorder->box.size = box.size;
 		Widget::step();
 	}
@@ -375,23 +380,23 @@ struct ScopeDisplay : ModuleLightWidget {
 	Scope *module;
 	int statsFrame = 0;
 	std::shared_ptr<Font> font;
-	Vec lastCordinate;
+	Vec lastCoordinate;
 	bool externalWindow = false;
 
 	struct Stats {
 		float vpp = 0.f;
-		float vmin = 0.f;
-		float vmax = 0.f;
+		float vMin = 0.f;
+		float vMax = 0.f;
 
 		void calculate(float *buffer, int channels) {
-			vmax = -INFINITY;
-			vmin = INFINITY;
+			vMax = -INFINITY;
+			vMin = INFINITY;
 			for (auto i = 0; i < MAX_BUFFER_SIZE * channels; i++) {
 				auto v = buffer[i];
-				vmax = std::fmax(vmax, v);
-				vmin = std::fmin(vmin, v);
+				vMax = std::fmax(vMax, v);
+				vMin = std::fmin(vMin, v);
 			}
-			vpp = vmax - vmin;
+			vpp = vMax - vMin;
 		}
 	};
 
@@ -483,7 +488,7 @@ struct ScopeDisplay : ModuleLightWidget {
 			p.y = rescale(v.y, 0.f, 1.f, b.pos.y + b.size.y, b.pos.y);
 			if (i == module->bufferSize - 1) {
 				nvgMoveTo(args.vg, p.x, p.y);
-				lastCordinate = p;
+				lastCoordinate = p;
 			} else {
 				auto vectorScale = 0.998f;
 				auto experimentalScale = 0.9f;
@@ -497,8 +502,8 @@ struct ScopeDisplay : ModuleLightWidget {
 											 + module->inputs[Scope::LINE_TYPE_INPUT].getVoltage())
 											- (int) Scope::LineType::NORMAL_LINE;
 						Vec intermediate;
-						intermediate.x = normVecCoeff * (p.x - lastCordinate.x) + lastCordinate.x;
-						intermediate.y = normVecCoeff * (p.y - lastCordinate.y) + lastCordinate.y;
+						intermediate.x = normVecCoeff * (p.x - lastCoordinate.x) + lastCoordinate.x;
+						intermediate.y = normVecCoeff * (p.y - lastCoordinate.y) + lastCoordinate.y;
 						if (i != startIndex)
 							nvgMoveTo(args.vg, intermediate.x, intermediate.y);
 
@@ -526,12 +531,12 @@ struct ScopeDisplay : ModuleLightWidget {
 					default:
 						assert(false);
 				}
-				lastCordinate = p;
+				lastCoordinate = p;
 			}
 			nvgStroke(args.vg);
 			nvgBeginPath(args.vg);
 			nvgMoveTo(args.vg, p.x, p.y);
-			lastCordinate = p;
+			lastCoordinate = p;
 		}
 		nvgResetTransform(args.vg);
 		nvgResetScissor(args.vg);
@@ -591,10 +596,10 @@ struct ScopeDisplay : ModuleLightWidget {
 		text += isNear(stats->vpp, 0.f, 100.f) ? string::f("% 6.2f", stats->vpp) : "  ---";
 		nvgText(args.vg, pos.x, pos.y, text.c_str(), NULL);
 		text = "max ";
-		text += isNear(stats->vmax, 0.f, 100.f) ? string::f("% 6.2f", stats->vmax) : "  ---";
+		text += isNear(stats->vMax, 0.f, 100.f) ? string::f("% 6.2f", stats->vMax) : "  ---";
 		nvgText(args.vg, pos.x + 58 * 1, pos.y, text.c_str(), NULL);
 		text = "min ";
-		text += isNear(stats->vmin, 0.f, 100.f) ? string::f("% 6.2f", stats->vmin) : "  ---";
+		text += isNear(stats->vMin, 0.f, 100.f) ? string::f("% 6.2f", stats->vMin) : "  ---";
 		nvgText(args.vg, pos.x + 58 * 2, pos.y, text.c_str(), NULL);
 	}
 
@@ -618,8 +623,12 @@ struct ScopeDisplay : ModuleLightWidget {
 	void draw(const DrawArgs &args) override {
 		if (!module)
 			return;
+
+		// only display woweform in widget if the external window
+		// is not open. The external window is drawn from ScopeWidget::step
+		// where additioanl comments are found
 		if (!externalWindow)
-			drawBounds(args, box);
+			preDrawWaveforms(args, box);
 
 		// Calculate and draw stats
 		if ((bool) module->params[Scope::SHOW_STATS_PARAM].getValue()) {
@@ -639,7 +648,7 @@ struct ScopeDisplay : ModuleLightWidget {
 		LightWidget::draw(args);
 	}
 
-	void drawBounds(const DrawArgs &args, Rect bounds) {
+	void preDrawWaveforms(const DrawArgs &args, Rect bounds) {
 		auto gainX = std::pow(2.f, module->params[Scope::X_SCALE_PARAM].getValue()) / 10.0f;
 		gainX += module->inputs[Scope::X_SCALE_INPUT].getVoltage() / 10.0f;
 		auto gainY = std::pow(2.f, module->params[Scope::Y_SCALE_PARAM].getValue()) / 10.0f;
@@ -929,7 +938,7 @@ struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 
 			DrawArgs context;
 			context.vg = _vg;
-			display->drawBounds(context, Rect(0, 0, fbWidth, fbHeight));
+			display->preDrawWaveforms(context, Rect(0, 0, fbWidth, fbHeight));
 
 			// Finished painting.
 			nvgEndFrame(_vg);
