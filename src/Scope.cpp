@@ -1,8 +1,3 @@
-#include <cstring>
-#include <memory>
-#include <atomic>
-#include "ModularFungi.hpp"
-
 //Copyright (c) 2018 Andrew Belt and licensed under BSD-3-Clause by Andrew Belt
 
 //Permission is hereby granted, free of charge, to any person obtaining a copy of this
@@ -27,7 +22,24 @@
 //Added use with lights off module, kaleidoscope plots, resizable, line types, line widths & fading lines
 //reworked UI, moved options to context menu.
 
-static const int BUFFER_SIZE = 4096;
+//Popout window code by Richie Hindle
+
+#include <cstring>
+#include <memory>
+#include <atomic>
+#include "ModularFungi.hpp"
+
+// Get the GLFW API.
+#define GLEW_STATIC
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+
+
+///512 in original scope, 4096 with variable bufferSize
+// This improves the drawing resolution, but reduces performance
+// The size of the buffer use is chooses by the performace options
+// in the context menu
+static const auto MAX_BUFFER_SIZE = 4096;
 
 struct Scope : Module {
 	enum ParamIds {
@@ -36,10 +48,10 @@ struct Scope : Module {
 		Y_SCALE_PARAM,
 		Y_POS_PARAM,
 		TIME_PARAM,
-		LISSAJOUS_PARAM,
+		LISSAJOUS_PARAM,  //unused, kept for 1.1.compatibility
 		TRIG_PARAM,
 		EXTERNAL_PARAM,
-		KALEIDOSCOPE_USE_PARAM,
+		KALEIDOSCOPE_USE_PARAM, //unused, kept for 1.1.compatibility
 		KALEIDOSCOPE_COUNT_PARAM,
 		KALEIDOSCOPE_RADIUS_PARAM,
 		KALEIDOSCOPE_COLOR_SPREAD_PARAM,
@@ -49,6 +61,7 @@ struct Scope : Module {
 		LINE_TYPE_PARAM,
 		SHOW_STATS_PARAM,
 		SHOW_LABELS_PARAM,
+		PLOT_TYPE_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -66,6 +79,8 @@ struct Scope : Module {
 		Y_POS_INPUT,
 		TIME_INPUT,
 		TRIG_LEVEL_INPUT,
+		LINE_TYPE_INPUT,
+		PLOT_TYPE_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -77,17 +92,25 @@ struct Scope : Module {
 
 	enum LineType {
 		NORMAL_LINE,
-		EXPERIMENTAL_LINE,
 		VECTOR_LINE,
+		EXPERIMENTAL_LINE,
 		NUM_LINES
 	};
 
-	float bufferX[PORT_MAX_CHANNELS][BUFFER_SIZE] = {};
-	float bufferY[PORT_MAX_CHANNELS][BUFFER_SIZE] = {};
+	enum PlotType {
+		NORMAL,
+		LISSAJOUS,
+		KALEIDOSCOPE,
+		NUM_PLOT_TYPES
+	};
+
+	float bufferX[PORT_MAX_CHANNELS][MAX_BUFFER_SIZE] = {};
+	float bufferY[PORT_MAX_CHANNELS][MAX_BUFFER_SIZE] = {};
 	int channelsX = 0;
 	int channelsY = 0;
 	int bufferIndex = 0;
 	int frameIndex = 0;
+	int bufferSize = 512;
 
 	//parameters for kaleidoscope
 	struct Kaleidoscope {
@@ -106,7 +129,7 @@ struct Scope : Module {
 	Scope() {
 		widgetWidth.store(RACK_GRID_WIDTH * 20);
 
-		const auto timeBase = (float) BUFFER_SIZE / 6;
+		const auto timeBase = (float) MAX_BUFFER_SIZE / 6;
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 		configParam(X_SCALE_PARAM, -2.f, 8.f, 0.f, "X scale", " ", 1 / 2.f, 5);
 		configParam(X_POS_PARAM, -10.f, 10.f, 0.f, "X position", " ");
@@ -128,6 +151,7 @@ struct Scope : Module {
 		configParam(SHOW_STATS_PARAM, 0.0f, 1.0f, 0.0f, "Show Stats");
 		configParam(KALEIDOSCOPE_COLOR_SPREAD_PARAM, 0.0f, 1.0f, 0.0f, "Kaleidoscope Color Spread");
 		configParam(SHOW_LABELS_PARAM, 0.0f, 1.0f, 0.0f, "Show Labels");
+		configParam(PLOT_TYPE_PARAM, 0.0f, NUM_PLOT_TYPES - 1, Scope::PlotType::NORMAL, "Plot Type");
 	}
 
 	void onReset() override {
@@ -150,6 +174,29 @@ struct Scope : Module {
 		lineWidth = params[LINE_WIDTH_PARAM].getValue() + inputs[LINE_WIDTH_INPUT].getVoltage();
 		fade = params[LINE_FADE_PARAM].getValue();
 
+		//PLOT_TYPE_PARAM added after version 1.1.1
+		//KALEIDOSCOPE_USE_PARAM and LISSAJOUS_PARAM are updated for compatibility
+		auto pType = (int) (params[PLOT_TYPE_PARAM].getValue() + inputs[PLOT_TYPE_INPUT].getVoltage() / 3.0f);
+		pType = clamp(pType, 0, NUM_PLOT_TYPES - 1);
+		switch ((PlotType) pType) {
+			case PlotType::NORMAL:
+				params[KALEIDOSCOPE_USE_PARAM].setValue(false);
+				params[LISSAJOUS_PARAM].setValue(false);
+				break;
+			case PlotType::KALEIDOSCOPE:
+				params[KALEIDOSCOPE_USE_PARAM].setValue(true);
+				params[LISSAJOUS_PARAM].setValue(true);
+				break;
+			case PlotType::LISSAJOUS:
+				params[KALEIDOSCOPE_USE_PARAM].setValue(false);
+				params[LISSAJOUS_PARAM].setValue(true);
+				break;
+			default:
+				params[KALEIDOSCOPE_USE_PARAM].setValue(false);
+				params[LISSAJOUS_PARAM].setValue(false);
+				break;
+		}
+
 		// Compute time
 		//updated to use cv
 		auto deltaTime = std::pow(2.f,
@@ -171,7 +218,7 @@ struct Scope : Module {
 		}
 
 		// Add frame to buffer
-		if (bufferIndex < BUFFER_SIZE) {
+		if (bufferIndex < bufferSize) {
 			if (++frameIndex > frameCount) {
 				frameIndex = 0;
 				for (auto c = 0; c < channelsX; c++) {
@@ -185,7 +232,7 @@ struct Scope : Module {
 		}
 
 		// Don't wait for trigger if still filling buffer
-		if (bufferIndex < BUFFER_SIZE) {
+		if (bufferIndex < bufferSize) {
 			return;
 		}
 
@@ -233,6 +280,7 @@ struct Scope : Module {
 	json_t *dataToJson() override {
 		json_t *rootJ = json_object();
 		json_object_set_new(rootJ, "WidgetWidth", json_real(widgetWidth.load()));
+		json_object_set_new(rootJ, "bufferSize", json_integer(bufferSize));
 		return rootJ;
 	}
 
@@ -240,10 +288,21 @@ struct Scope : Module {
 		json_t *ww = json_object_get(rootJ, "WidgetWidth");
 		if (ww)
 			widgetWidth.store((float) json_real_value(ww));
+
+		json_t *bs = json_object_get(rootJ, "bufferSize");
+		if (bs)
+			bufferSize = json_integer_value(bs);
 	}
 };
 
 // USER INTERFACE  ****************
+
+/// interface to be implemented by module widget for popout window
+struct IPopupWindowOwner
+{
+	virtual void IPopupWindowOwner_showWindow() = 0;
+	virtual void IPopupWindowOwner_hideWindow() = 0;
+};
 
 /// Placed on right of module, allow resizing of parent widget via drag
 struct ResizeTab : OpaqueWidget {
@@ -291,6 +350,7 @@ struct ResizeTab : OpaqueWidget {
 
 // No svg background is used
 // ScopePanel is used to draw background and border
+// allowing for resizeable widget
 struct ScopePanel : Widget {
 	Widget *panelBorder = nullptr;
 	NVGcolor backGroundColor;
@@ -302,6 +362,7 @@ struct ScopePanel : Widget {
 	}
 
 	void step() override {
+		//
 		panelBorder->box.size = box.size;
 		Widget::step();
 	}
@@ -319,21 +380,23 @@ struct ScopeDisplay : ModuleLightWidget {
 	Scope *module;
 	int statsFrame = 0;
 	std::shared_ptr<Font> font;
+	Vec lastCoordinate;
+	bool externalWindow = false;
 
 	struct Stats {
 		float vpp = 0.f;
-		float vmin = 0.f;
-		float vmax = 0.f;
+		float vMin = 0.f;
+		float vMax = 0.f;
 
 		void calculate(float *buffer, int channels) {
-			vmax = -INFINITY;
-			vmin = INFINITY;
-			for (auto i = 0; i < BUFFER_SIZE * channels; i++) {
+			vMax = -INFINITY;
+			vMin = INFINITY;
+			for (auto i = 0; i < MAX_BUFFER_SIZE * channels; i++) {
 				auto v = buffer[i];
-				vmax = std::fmax(vmax, v);
-				vmin = std::fmin(vmin, v);
+				vMax = std::fmax(vMax, v);
+				vMin = std::fmin(vMin, v);
 			}
-			vpp = vmax - vmin;
+			vpp = vMax - vMin;
 		}
 	};
 
@@ -352,25 +415,27 @@ struct ScopeDisplay : ModuleLightWidget {
 					  float gainY,
 					  float kRadius = 0.0f,
 					  float kRotation = 0.0f,
-					  NVGcolor beam = {1.0f, 1.0f, 1.0f, 1.0f}) {
+					  NVGcolor beam = {1.0f, 1.0f, 1.0f, 1.0f},
+					  Rect bounds = {0,0,1,1}) {
 		assert(bufferY);
 		nvgSave(args.vg);
 
 		//beam fading using a varying alpha
 		auto maxAlpha = 0.99f;
-		auto lightInc = maxAlpha / BUFFER_SIZE;
+		auto lightInc = maxAlpha / (float) module->bufferSize;
 		auto currentAlpha = maxAlpha;
 
 		auto currentLineWidth = module->lineWidth;
-		auto widthInc = module->lineWidth / BUFFER_SIZE;
+		auto widthInc = module->lineWidth / (float) module->bufferSize;;
 
-		auto b = Rect(Vec(0, 15), box.size.minus(Vec(0, 15 * 2)));
+
+		auto b = Rect(Vec(0, 15), bounds.size.minus(Vec(0, 15 * 2)));
 		nvgBeginPath(args.vg);
 		nvgScissor(args.vg, b.pos.x, b.pos.y, b.size.x, b.size.y);
-		nvgTranslate(args.vg, kRadius * simd::cos(kRotation) + box.size.x / 2.0f,
-					 kRadius * simd::sin(kRotation) - (box.size.y - 30) / 2.0f);
+		nvgTranslate(args.vg, kRadius * simd::cos(kRotation) + bounds.size.x / 2.0f,
+					 kRadius * simd::sin(kRotation) - (bounds.size.y - 30) / 2.0f);
 		if (!(bool) module->params[Scope::LISSAJOUS_PARAM].getValue())
-			nvgTranslate(args.vg, -box.size.x / 2.0f, 0);
+			nvgTranslate(args.vg, -bounds.size.x / 2.0f, 0);
 
 		nvgLineCap(args.vg, NVG_BUTT);
 		nvgMiterLimit(args.vg, 2.f);
@@ -383,13 +448,15 @@ struct ScopeDisplay : ModuleLightWidget {
 		// when drawing the buffer, if the line is to fade, start drawing at 2 samples prior
 		// bufferIndex, with full alpha.
 		// when the line is not fading, draw the buffer from end to start to remove flicker.
-		auto startIndex = (bool) module->fade ? module->bufferIndex - 3 : BUFFER_SIZE - 2;
-		startIndex = clamp(startIndex, 0, BUFFER_SIZE - 1);
+		auto startIndex = (bool) module->fade ? module->bufferIndex - 3 : module->bufferSize - 2;
+		startIndex = clamp(startIndex, 0, module->bufferSize - 1);
 		auto endIndex = (bool) module->fade ? module->bufferIndex - 2 : 0;
-		endIndex = clamp(endIndex, 0, BUFFER_SIZE - 1);
+		endIndex = clamp(endIndex, 1, module->bufferSize - 1);
+
+
 		for (auto i = startIndex; i != endIndex; i--) {
 			if (i < 0)
-				i = BUFFER_SIZE - 1; // loop buffer due to starting at various locations
+				i = module->bufferSize - 1; // loop buffer due to starting at various locations
 
 			nvgStrokeColor(args.vg, nvgRGBAf(beam.r, beam.g, beam.b, currentAlpha));
 			nvgStrokeWidth(args.vg, currentLineWidth);
@@ -401,7 +468,7 @@ struct ScopeDisplay : ModuleLightWidget {
 			if (bufferX) {
 				v.x = (bufferX[i] + offsetX) * gainX / 2.0f;
 			} else {
-				v.x = (float) i / (BUFFER_SIZE - 1);
+				v.x = (float) i / (module->bufferSize - 1);
 			}
 			v.y = (bufferY[i] + offsetY) * gainY / 2.0f;
 
@@ -419,19 +486,41 @@ struct ScopeDisplay : ModuleLightWidget {
 				p.x = rescale(v.x, 0.f, 1.f, b.pos.x, b.pos.x + b.size.x);
 
 			p.y = rescale(v.y, 0.f, 1.f, b.pos.y + b.size.y, b.pos.y);
-			if (i == BUFFER_SIZE - 1) {
+			if (i == module->bufferSize - 1) {
 				nvgMoveTo(args.vg, p.x, p.y);
+				lastCoordinate = p;
 			} else {
 				auto vectorScale = 0.998f;
 				auto experimentalScale = 0.9f;
-				switch ((Scope::LineType) module->params[Scope::LINE_TYPE_PARAM].getValue()) {
-					case Scope::LineType::NORMAL_LINE:
+				auto lType = (int) (module->params[Scope::LINE_TYPE_PARAM].getValue()
+									+ module->inputs[Scope::LINE_TYPE_INPUT].getVoltage());
+				lType = clamp(lType, 0, (int) Scope::LineType::NUM_LINES - 1);
+				switch ((Scope::LineType) lType) {
+					case Scope::LineType::NORMAL_LINE: {
+						//morph between normal and vector lines
+						auto normVecCoeff = (module->params[Scope::LINE_TYPE_PARAM].getValue()
+											 + module->inputs[Scope::LINE_TYPE_INPUT].getVoltage())
+											- (int) Scope::LineType::NORMAL_LINE;
+						Vec intermediate;
+						intermediate.x = normVecCoeff * (p.x - lastCoordinate.x) + lastCoordinate.x;
+						intermediate.y = normVecCoeff * (p.y - lastCoordinate.y) + lastCoordinate.y;
+						if (i != startIndex)
+							nvgMoveTo(args.vg, intermediate.x, intermediate.y);
+
 						nvgLineTo(args.vg, p.x, p.y);
 						break;
-					case Scope::LineType::VECTOR_LINE:
-						nvgMoveTo(args.vg, vectorScale * p.x, vectorScale * p.y);
+					}
+					case Scope::LineType::VECTOR_LINE: {
+						//morph between vector and experimental line types
+						auto vecExprCoeff = (module->params[Scope::LINE_TYPE_PARAM].getValue()
+											 + module->inputs[Scope::LINE_TYPE_INPUT].getVoltage())
+											- (int) Scope::LineType::VECTOR_LINE;
+						auto scale = vecExprCoeff * (experimentalScale - vectorScale) + vectorScale;
+
+						nvgMoveTo(args.vg, scale * p.x, scale * p.y);
 						nvgLineTo(args.vg, p.x, p.y);
 						break;
+					}
 					case Scope::LineType::EXPERIMENTAL_LINE:
 						nvgMoveTo(args.vg, experimentalScale * p.x, experimentalScale * p.y);
 						nvgLineTo(args.vg, p.x, p.y);
@@ -442,22 +531,24 @@ struct ScopeDisplay : ModuleLightWidget {
 					default:
 						assert(false);
 				}
+				lastCoordinate = p;
 			}
 			nvgStroke(args.vg);
 			nvgBeginPath(args.vg);
 			nvgMoveTo(args.vg, p.x, p.y);
+			lastCoordinate = p;
 		}
 		nvgResetTransform(args.vg);
 		nvgResetScissor(args.vg);
 		nvgRestore(args.vg);
 	}
 
-	void drawTrig(const DrawArgs &args, float value) {
-		auto b = Rect(Vec(0, 15), box.size.minus(Vec(0, 15 * 2)));
+	void drawTrig(const DrawArgs &args, float value, Rect bounds) {
+		auto b = Rect(Vec(0, 15), bounds.size.minus(Vec(0, 15 * 2)));
 		nvgScissor(args.vg, b.pos.x, b.pos.y, b.size.x, b.size.y);
 
 		value = value / 2.f + 0.5f;
-		auto p = Vec(box.size.x, b.pos.y + b.size.y * (1.f - value));
+		auto p = Vec(bounds.size.x, b.pos.y + b.size.y * (1.f - value));
 
 		// Draw line
 		nvgStrokeColor(args.vg, nvgRGBA(0xff, 0xff, 0xff, 0x10));
@@ -505,17 +596,18 @@ struct ScopeDisplay : ModuleLightWidget {
 		text += isNear(stats->vpp, 0.f, 100.f) ? string::f("% 6.2f", stats->vpp) : "  ---";
 		nvgText(args.vg, pos.x, pos.y, text.c_str(), NULL);
 		text = "max ";
-		text += isNear(stats->vmax, 0.f, 100.f) ? string::f("% 6.2f", stats->vmax) : "  ---";
+		text += isNear(stats->vMax, 0.f, 100.f) ? string::f("% 6.2f", stats->vMax) : "  ---";
 		nvgText(args.vg, pos.x + 58 * 1, pos.y, text.c_str(), NULL);
 		text = "min ";
-		text += isNear(stats->vmin, 0.f, 100.f) ? string::f("% 6.2f", stats->vmin) : "  ---";
+		text += isNear(stats->vMin, 0.f, 100.f) ? string::f("% 6.2f", stats->vMin) : "  ---";
 		nvgText(args.vg, pos.x + 58 * 2, pos.y, text.c_str(), NULL);
 	}
 
 	void drawLabels(const DrawArgs &args) {
 		std::vector<std::string> labels = {"X Input", "X Scale", "X Position", "Y Input", "Y Scale", "Y Position",
 										   "Time", "Trigger Input", "Trigger Position", "Color", "Line Width",
-										   "Kaleidoscope Images", "Kaleidoscope Radius", "Color Spread"};
+										   "Kaleidoscope Images", "Kaleidoscope Radius", "Color Spread", "Line Type",
+										   "Plot Type"};
 		nvgFontSize(args.vg, 13);
 		nvgFontFaceId(args.vg, font->handle);
 		nvgTextLetterSpacing(args.vg, -2);
@@ -532,6 +624,31 @@ struct ScopeDisplay : ModuleLightWidget {
 		if (!module)
 			return;
 
+		// only display woweform in widget if the external window
+		// is not open. The external window is drawn from ScopeWidget::step
+		// where additioanl comments are found
+		if (!externalWindow)
+			preDrawWaveforms(args, box);
+
+		// Calculate and draw stats
+		if ((bool) module->params[Scope::SHOW_STATS_PARAM].getValue()) {
+			if (++statsFrame >= 4) {
+				statsFrame = 0;
+				statsX.calculate(module->bufferX[0], module->channelsX);
+				statsY.calculate(module->bufferY[0], module->channelsY);
+			}
+			drawStats(args, Vec(25, 0), "X", &statsX);
+			drawStats(args, Vec(25, box.size.y - 15), "Y", &statsY);
+		}
+
+		if ((bool) module->params[Scope::SHOW_LABELS_PARAM].getValue()) {
+			drawLabels(args);
+		}
+
+		LightWidget::draw(args);
+	}
+
+	void preDrawWaveforms(const DrawArgs &args, Rect bounds) {
 		auto gainX = std::pow(2.f, module->params[Scope::X_SCALE_PARAM].getValue()) / 10.0f;
 		gainX += module->inputs[Scope::X_SCALE_INPUT].getVoltage() / 10.0f;
 		auto gainY = std::pow(2.f, module->params[Scope::Y_SCALE_PARAM].getValue()) / 10.0f;
@@ -555,7 +672,8 @@ struct ScopeDisplay : ModuleLightWidget {
 							 gainY,
 							 0,
 							 0,
-							 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
+							 nvgHSLA(module->hue, 0.5f, 0.5f, 200),
+							 bounds);
 
 				//draw Kaleidoscope rotations;
 				auto unitRotation = (float) (2.0 * M_PI) / (float) module->kaleidoscope.count;
@@ -578,10 +696,11 @@ struct ScopeDisplay : ModuleLightWidget {
 								 gainY,
 								 module->kaleidoscope.radius,
 								 (i * unitRotation),
-								 nvgHSLA(reflectionHue, 0.5f, 0.5f, 200));
+								 nvgHSLA(reflectionHue, 0.5f, 0.5f, 200),
+								 bounds);
 				}
 			}
-		} else {
+		} else {  //draw normal
 			// Y
 			for (auto c = 0; c < module->channelsY; c++) {
 				drawWaveform(args,
@@ -593,7 +712,8 @@ struct ScopeDisplay : ModuleLightWidget {
 							 gainY,
 							 0,
 							 0,
-							 nvgRGBA(0xe1, 0x02, 0x78, 0xc0));
+							 nvgRGBA(0xe1, 0x02, 0x78, 0xc0),
+							 bounds);
 			}
 
 			// X
@@ -607,41 +727,41 @@ struct ScopeDisplay : ModuleLightWidget {
 							 gainX,
 							 0,
 							 0,
-							 nvgHSLA(module->hue, 0.5f, 0.5f, 200));
+							 nvgHSLA(module->hue, 0.5f, 0.5f, 200),
+							 bounds);
 			}
 
 			auto trigThreshold = module->params[Scope::TRIG_PARAM].getValue();
 			trigThreshold += module->inputs[Scope::TRIG_LEVEL_INPUT].getVoltage();
 			trigThreshold = clamp(trigThreshold, -10.0f, 10.0f);
 			trigThreshold = (trigThreshold + offsetX) * gainX;
-			drawTrig(args, trigThreshold);
+			drawTrig(args, trigThreshold, bounds);
 		}
+	}
+};
 
-		// Calculate and draw stats
-		if ((bool) module->params[Scope::SHOW_STATS_PARAM].getValue()) {
-			if (++statsFrame >= 4) {
-				statsFrame = 0;
-				statsX.calculate(module->bufferX[0], module->channelsX);
-				statsY.calculate(module->bufferY[0], module->channelsY);
-			}
-			drawStats(args, Vec(25, 0), "X", &statsX);
-			drawStats(args, Vec(25, box.size.y - 15), "Y", &statsY);
-		}
+//Context menus
 
-		if ((bool) module->params[Scope::SHOW_LABELS_PARAM].getValue()) {
-			drawLabels(args);
-		}
+struct ShowWindowMenuItem : MenuItem {
+	IPopupWindowOwner* windowOwner;
+	void onAction(const event::Action& e) override {
+		windowOwner->IPopupWindowOwner_showWindow();
+	}
+};
+
+struct HideWindowMenuItem : MenuItem {
+	IPopupWindowOwner* windowOwner;
+	void onAction(const event::Action& e) override {
+		windowOwner->IPopupWindowOwner_hideWindow();
 	}
 };
 
 struct PlotTypeMenuItem : MenuItem {
 	Scope *module;
-	bool lissajous = false;
-	bool kaleidoscope = false;
+	Scope::PlotType plotType = Scope::PlotType::NORMAL;
 
 	void onAction(const event::Action &e) override {
-		module->params[Scope::LISSAJOUS_PARAM].setValue(lissajous);
-		module->params[Scope::KALEIDOSCOPE_USE_PARAM].setValue(kaleidoscope);
+		module->params[Scope::PLOT_TYPE_PARAM].setValue(plotType);
 	}
 };
 
@@ -651,6 +771,15 @@ struct LineTypeMenuItem : MenuItem {
 
 	void onAction(const event::Action &e) override {
 		module->params[Scope::LINE_TYPE_PARAM].setValue(lineType);
+	}
+};
+
+struct ResolutionMenuItem : MenuItem {
+	Scope *module;
+	int size = 512;
+
+	void onAction(const event::Action &e) override {
+		module->bufferSize = size;
 	}
 };
 
@@ -717,9 +846,12 @@ struct Port2mm : app::SvgPort {
 
 // Components
 
-struct ScopeWidget : ModuleWidget {
+struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 	ResizeTab rt;
 	ScopeDisplay *display;
+	GLFWwindow* _window = nullptr;  // Handle to the popup window.
+	NVGcontext* _vg = nullptr;		// For painting into the popup window.
+	std::shared_ptr<Font> _font;	//
 
 	ScopeWidget(Scope *module) {
 		setModule(module);
@@ -767,14 +899,60 @@ struct ScopeWidget : ModuleWidget {
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 95.0)), module, Scope::KALEIDOSCOPE_RADIUS_INPUT));
 		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_PARAM));
 		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 102.5)), module, Scope::KALEIDOSCOPE_COLOR_SPREAD_INPUT));
-
+		addParam(createParamCentered<TinyKnob>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 110.0)), module, Scope::LINE_TYPE_INPUT));
+		addParam(createParamCentered<TinySnapKnob>(mm2px(Vec(5, 117.5)), module, Scope::PLOT_TYPE_PARAM));
+		addInput(createInputCentered<Port2mm>(mm2px(Vec(5, 117.5)), module, Scope::PLOT_TYPE_INPUT));
 	}
 
 	~ScopeWidget() override {
 		removeChild(&rt);
+		// Hide the pop out window if we have one
+		IPopupWindowOwner_hideWindow();
 	}
 
+
 	void step() override {
+		//pop-out window is handled here, I would have preferred ScopeDisplay::draw()
+		//but this only updates the external window if the ModuleWidget is displayed
+		//zooming and scrolling in the main window can stop rendering of the external
+		//window
+		if (_window) {
+			display->externalWindow = true;
+			// Paint the popup window.
+			glfwMakeContextCurrent(_window);
+
+			// Get the size of the popup window, both the window and the framebuffer.
+			int winWidth, winHeight;
+			int fbWidth, fbHeight;
+			float pxRatio;
+			glfwGetWindowSize(_window, &winWidth, &winHeight);
+			glfwGetFramebufferSize(_window, &fbWidth, &fbHeight);
+			pxRatio = (float)fbWidth / (float)winWidth;
+
+			// Start painting.
+			glViewport(0, 0, fbWidth, fbHeight);
+			glClearColor(0, 0, 0, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+			nvgBeginFrame(_vg, (float)winWidth, (float)winHeight, pxRatio);
+
+			DrawArgs context;
+			context.vg = _vg;
+			display->preDrawWaveforms(context, Rect(0, 0, fbWidth, fbHeight));
+
+			// Finished painting.
+			nvgEndFrame(_vg);
+			glfwSwapBuffers(_window);
+			glfwMakeContextCurrent(APP->window->win);
+
+			// If the user has clicked the window's Close button, close it.
+			if (glfwWindowShouldClose(_window)) {
+				IPopupWindowOwner_hideWindow();
+			}
+		}
+		else
+			display->externalWindow=false;
+
 		if (box.size.x != panel->box.size.x) { // ui resized
 			if (module)
 				((Scope *) (module))->widgetWidth.store(box.size.x);
@@ -791,8 +969,59 @@ struct ScopeWidget : ModuleWidget {
 		ModuleWidget::step();
 	}
 
+	void IPopupWindowOwner_showWindow() override {
+		if (_window == nullptr) {
+			// Tell GLFW the properties of the window we want to create.
+			glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
+			glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+			glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+
+			// Create the window.
+			_window = glfwCreateWindow(400, 300, "Opsylloscope", NULL, NULL);
+
+			// Don't wait for vsync when rendering 'cos it slows down the Rack UI thread.
+			glfwMakeContextCurrent(_window);
+			glfwSwapInterval(0);
+
+			// If you want your window to stay on top of other windows.
+//			glfwSetWindowAttrib(_window, GLFW_FLOATING, true);
+
+			// Create a NanoVG context for painting the popup window.
+//			_vg = nvgCreateGL2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
+			_vg = nvgCreateGL2(0);
+
+			// Hand OpenGL back to Rack.
+			glfwMakeContextCurrent(APP->window->win);
+		}
+	}
+
+	void IPopupWindowOwner_hideWindow() override {
+		if (_window != nullptr) {
+			// Destroy the window and its NanoVG context.
+			glfwMakeContextCurrent(_window);
+			nvgDeleteGL2(_vg);
+			glfwDestroyWindow(_window);
+			glfwMakeContextCurrent(APP->window->win);
+			_window = nullptr;
+		}
+	}
+
 	void appendContextMenu(Menu *menu) override {
 		auto *module = dynamic_cast<Scope *> (this->module);
+
+		menu->addChild(new MenuEntry);
+
+		if (_window == nullptr) {
+			ShowWindowMenuItem* showWindowMenuItem = new ShowWindowMenuItem;
+			showWindowMenuItem->text = "Display in pop-out window";
+			showWindowMenuItem->windowOwner = this;
+			menu->addChild(showWindowMenuItem);
+		} else {
+			HideWindowMenuItem* hideWindowMenuItem = new HideWindowMenuItem;
+			hideWindowMenuItem->text = "Hide pop-out window";
+			hideWindowMenuItem->windowOwner = this;
+			menu->addChild(hideWindowMenuItem);
+		}
 
 		menu->addChild(new MenuEntry);
 
@@ -801,43 +1030,28 @@ struct ScopeWidget : ModuleWidget {
 		menu->addChild(plotTypeLabel);
 
 		auto *normalPlotType = new PlotTypeMenuItem();
-		normalPlotType->kaleidoscope = false;
-		normalPlotType->lissajous = false;
+		normalPlotType->plotType = Scope::PlotType::NORMAL;
 		normalPlotType->text = "Normal";
-		normalPlotType->rightText = CHECKMARK(module->params[Scope::LISSAJOUS_PARAM].getValue() == false
-											  && module->params[Scope::KALEIDOSCOPE_USE_PARAM].getValue() == false);
+		normalPlotType->rightText = CHECKMARK(
+				module->params[Scope::PLOT_TYPE_PARAM].getValue() == Scope::PlotType::NORMAL);
 		normalPlotType->module = module;
 		menu->addChild(normalPlotType);
 
 		auto *lissajousPlotType = new PlotTypeMenuItem();
-		lissajousPlotType->kaleidoscope = false;
-		lissajousPlotType->lissajous = true;
+		lissajousPlotType->plotType = Scope::PlotType::LISSAJOUS;
 		lissajousPlotType->text = "Lissajous";
-		lissajousPlotType->rightText = CHECKMARK(module->params[Scope::LISSAJOUS_PARAM].getValue() == true
-												 && module->params[Scope::KALEIDOSCOPE_USE_PARAM].getValue() == false);
+		lissajousPlotType->rightText = CHECKMARK(
+				module->params[Scope::PLOT_TYPE_PARAM].getValue() == Scope::PlotType::LISSAJOUS);
 		lissajousPlotType->module = module;
 		menu->addChild(lissajousPlotType);
 
 		auto *kaleidoscope = new PlotTypeMenuItem();
-		kaleidoscope->kaleidoscope = true;
-		kaleidoscope->lissajous = true;
+		kaleidoscope->plotType = Scope::PlotType::KALEIDOSCOPE;
 		kaleidoscope->text = "Kaleidoscope";
-		kaleidoscope->rightText = CHECKMARK(module->params[Scope::LISSAJOUS_PARAM].getValue() == true
-											&& module->params[Scope::KALEIDOSCOPE_USE_PARAM].getValue() == true);
+		kaleidoscope->rightText = CHECKMARK(
+				module->params[Scope::PLOT_TYPE_PARAM].getValue() == Scope::PlotType::KALEIDOSCOPE);
 		kaleidoscope->module = module;
 		menu->addChild(kaleidoscope);
-
-		menu->addChild(new MenuEntry);
-
-		auto *triggerTypeLabel = new MenuLabel();
-		triggerTypeLabel->text = "Trigger";
-		menu->addChild(triggerTypeLabel);
-
-		auto *extTrig = new ExternalTriggerMenuItem();
-		extTrig->text = "External";
-		extTrig->rightText = CHECKMARK(module->params[Scope::EXTERNAL_PARAM].getValue());
-		extTrig->module = module;
-		menu->addChild(extTrig);
 
 		menu->addChild(new MenuEntry);
 
@@ -871,6 +1085,18 @@ struct ScopeWidget : ModuleWidget {
 
 		menu->addChild(new MenuEntry);
 
+		auto *triggerTypeLabel = new MenuLabel();
+		triggerTypeLabel->text = "Trigger";
+		menu->addChild(triggerTypeLabel);
+
+		auto *extTrig = new ExternalTriggerMenuItem();
+		extTrig->text = "External";
+		extTrig->rightText = CHECKMARK(module->params[Scope::EXTERNAL_PARAM].getValue());
+		extTrig->module = module;
+		menu->addChild(extTrig);
+
+		menu->addChild(new MenuEntry);
+
 		auto *fade = new LineFadeMenuItem();
 		fade->text = "Fade";
 		fade->rightText = CHECKMARK(module->params[Scope::LINE_FADE_PARAM].getValue());
@@ -888,6 +1114,40 @@ struct ScopeWidget : ModuleWidget {
 		showLabels->rightText = CHECKMARK(module->params[Scope::SHOW_LABELS_PARAM].getValue());
 		showLabels->module = module;
 		menu->addChild(showLabels);
+
+		menu->addChild(new MenuEntry);
+
+		auto *bufferSizeLabel = new MenuLabel();
+		bufferSizeLabel->text = "Performance";
+		menu->addChild(bufferSizeLabel);
+
+		auto *resolution512 = new ResolutionMenuItem();
+		resolution512->module = module;
+		resolution512->size = 512;
+		resolution512->text = "Eco";
+		resolution512->rightText = CHECKMARK(module->bufferSize == 512);
+		menu->addChild(resolution512);
+
+		auto *resolution1024 = new ResolutionMenuItem();
+		resolution1024->module = module;
+		resolution1024->size = 1024;
+		resolution1024->text = "Normal";
+		resolution1024->rightText = CHECKMARK(module->bufferSize == 1024);
+		menu->addChild(resolution1024);
+
+		auto *resolution2048 = new ResolutionMenuItem();
+		resolution2048->module = module;
+		resolution2048->size = 2048;
+		resolution2048->text = "Good";
+		resolution2048->rightText = CHECKMARK(module->bufferSize == 2048);
+		menu->addChild(resolution2048);
+
+		auto *resolution4096 = new ResolutionMenuItem();
+		resolution4096->module = module;
+		resolution4096->size = 4096;
+		resolution4096->text = "Ultra";
+		resolution4096->rightText = CHECKMARK(module->bufferSize == 4096);
+		menu->addChild(resolution4096);
 	}
 };
 
