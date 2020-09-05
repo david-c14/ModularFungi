@@ -31,13 +31,14 @@
 
 // Get the GLFW API.
 #define GLEW_STATIC
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
 
 ///512 in original scope, 4096 with variable bufferSize
 // This improves the drawing resolution, but reduces performance
-// The size of the buffer use is chooses by the performace options
+// The size of the buffer use is chooses by the performance options
 // in the context menu
 static const auto MAX_BUFFER_SIZE = 4096;
 
@@ -62,6 +63,7 @@ struct Scope : Module {
 		SHOW_STATS_PARAM,
 		SHOW_LABELS_PARAM,
 		PLOT_TYPE_PARAM,
+		EXT_WINDOW_ALPHA_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -152,6 +154,7 @@ struct Scope : Module {
 		configParam(KALEIDOSCOPE_COLOR_SPREAD_PARAM, 0.0f, 1.0f, 0.0f, "Kaleidoscope Color Spread");
 		configParam(SHOW_LABELS_PARAM, 0.0f, 1.0f, 0.0f, "Show Labels");
 		configParam(PLOT_TYPE_PARAM, 0.0f, NUM_PLOT_TYPES - 1, Scope::PlotType::NORMAL, "Plot Type");
+		configParam(EXT_WINDOW_ALPHA_PARAM, 0.0f, 1.0f, 1.0f, "External Window Alpha");
 	}
 
 	void onReset() override {
@@ -298,9 +301,9 @@ struct Scope : Module {
 // USER INTERFACE  ****************
 
 /// interface to be implemented by module widget for popout window
-struct IPopupWindowOwner
-{
+struct IPopupWindowOwner {
 	virtual void IPopupWindowOwner_showWindow() = 0;
+
 	virtual void IPopupWindowOwner_hideWindow() = 0;
 };
 
@@ -416,7 +419,7 @@ struct ScopeDisplay : ModuleLightWidget {
 					  float kRadius = 0.0f,
 					  float kRotation = 0.0f,
 					  NVGcolor beam = {1.0f, 1.0f, 1.0f, 1.0f},
-					  Rect bounds = {0,0,1,1}) {
+					  Rect bounds = {0, 0, 1, 1}) {
 		assert(bufferY);
 		nvgSave(args.vg);
 
@@ -626,7 +629,7 @@ struct ScopeDisplay : ModuleLightWidget {
 
 		// only display woweform in widget if the external window
 		// is not open. The external window is drawn from ScopeWidget::step
-		// where additioanl comments are found
+		// where additional comments are found
 		if (!externalWindow)
 			preDrawWaveforms(args, box);
 
@@ -743,16 +746,63 @@ struct ScopeDisplay : ModuleLightWidget {
 //Context menus
 
 struct ShowWindowMenuItem : MenuItem {
-	IPopupWindowOwner* windowOwner;
-	void onAction(const event::Action& e) override {
+	IPopupWindowOwner *windowOwner;
+
+	void onAction(const event::Action &e) override {
 		windowOwner->IPopupWindowOwner_showWindow();
 	}
 };
 
 struct HideWindowMenuItem : MenuItem {
-	IPopupWindowOwner* windowOwner;
-	void onAction(const event::Action& e) override {
+	IPopupWindowOwner *windowOwner;
+
+	void onAction(const event::Action &e) override {
 		windowOwner->IPopupWindowOwner_hideWindow();
+	}
+};
+
+struct ExtWindowAlphaQuantity : Quantity {
+	Scope *module = nullptr;
+
+	void setValue(float value) override {
+		if (module != nullptr)
+			module->params[Scope::EXT_WINDOW_ALPHA_PARAM].setValue(clamp(value, 0.0f, 1.0f));
+	}
+
+	float getValue() override {
+		if (module == nullptr)
+			return 0.0f;
+		return module->params[Scope::EXT_WINDOW_ALPHA_PARAM].getValue();
+	}
+
+	float getMinValue() override {
+		return 0.0f;
+	}
+
+	float getMaxValue() override {
+		return 1.0f;
+	}
+
+	float getDefaultValue() override {
+		return 1.0f;
+	}
+
+	int getDisplayPrecision() override {
+		return 2;
+	}
+
+	std::string getLabel() override {
+		return "Pop-out Window Alpha";
+	}
+};
+
+struct ExtWindowAlphaSlider : ui::Slider {
+	ExtWindowAlphaSlider() {
+		quantity = new ExtWindowAlphaQuantity;
+	}
+
+	~ExtWindowAlphaSlider() {
+		delete quantity;
 	}
 };
 
@@ -849,9 +899,9 @@ struct Port2mm : app::SvgPort {
 struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 	ResizeTab rt;
 	ScopeDisplay *display;
-	GLFWwindow* _window = nullptr;  // Handle to the popup window.
-	NVGcontext* _vg = nullptr;		// For painting into the popup window.
-	std::shared_ptr<Font> _font;	//
+	GLFWwindow *_window = nullptr;  // Handle to the popup window.
+	NVGcontext *_vg = nullptr;        // For painting into the popup window.
+	std::shared_ptr<Font> _font;    //
 
 	ScopeWidget(Scope *module) {
 		setModule(module);
@@ -928,13 +978,14 @@ struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 			float pxRatio;
 			glfwGetWindowSize(_window, &winWidth, &winHeight);
 			glfwGetFramebufferSize(_window, &fbWidth, &fbHeight);
-			pxRatio = (float)fbWidth / (float)winWidth;
+			pxRatio = (float) fbWidth / (float) winWidth;
 
 			// Start painting.
 			glViewport(0, 0, fbWidth, fbHeight);
-			glClearColor(0, 0, 0, 1.0f);
+			auto alpha = dynamic_cast<Scope *>(module)->params[Scope::EXT_WINDOW_ALPHA_PARAM].getValue();
+			glClearColor(0, 0, 0, alpha); //Alpha background
 			glClear(GL_COLOR_BUFFER_BIT);
-			nvgBeginFrame(_vg, (float)winWidth, (float)winHeight, pxRatio);
+			nvgBeginFrame(_vg, (float) winWidth, (float) winHeight, pxRatio);
 
 			DrawArgs context;
 			context.vg = _vg;
@@ -949,9 +1000,8 @@ struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 			if (glfwWindowShouldClose(_window)) {
 				IPopupWindowOwner_hideWindow();
 			}
-		}
-		else
-			display->externalWindow=false;
+		} else
+			display->externalWindow = false;
 
 		if (box.size.x != panel->box.size.x) { // ui resized
 			if (module)
@@ -975,9 +1025,11 @@ struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 			glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
 			glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 			glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+			glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
 
 			// Create the window.
 			_window = glfwCreateWindow(400, 300, "Opsylloscope", NULL, NULL);
+
 
 			// Don't wait for vsync when rendering 'cos it slows down the Rack UI thread.
 			glfwMakeContextCurrent(_window);
@@ -1012,18 +1064,25 @@ struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 		menu->addChild(new MenuEntry);
 
 		if (_window == nullptr) {
-			ShowWindowMenuItem* showWindowMenuItem = new ShowWindowMenuItem;
+			ShowWindowMenuItem *showWindowMenuItem = new ShowWindowMenuItem;
 			showWindowMenuItem->text = "Display in pop-out window";
 			showWindowMenuItem->windowOwner = this;
 			menu->addChild(showWindowMenuItem);
 		} else {
-			HideWindowMenuItem* hideWindowMenuItem = new HideWindowMenuItem;
+			HideWindowMenuItem *hideWindowMenuItem = new HideWindowMenuItem;
 			hideWindowMenuItem->text = "Hide pop-out window";
 			hideWindowMenuItem->windowOwner = this;
 			menu->addChild(hideWindowMenuItem);
 		}
 
+
+		auto *extWindowAlphaSlider = new ExtWindowAlphaSlider;
+		dynamic_cast<ExtWindowAlphaQuantity *>(extWindowAlphaSlider->quantity)->module = module;
+		extWindowAlphaSlider->box.size.x = 200.0f;
+		menu->addChild(extWindowAlphaSlider);
+
 		menu->addChild(new MenuEntry);
+
 
 		auto *plotTypeLabel = new MenuLabel();
 		plotTypeLabel->text = "Plot Type";
