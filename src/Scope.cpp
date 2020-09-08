@@ -1026,6 +1026,7 @@ struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 			glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 			glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
 			glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+			glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 			// Create the window.
 			_window = glfwCreateWindow(400, 300, "Opsylloscope", NULL, NULL);
