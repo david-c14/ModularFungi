@@ -86,7 +86,7 @@ struct LightsOffContainer : widget::Widget {
 				q.pop();
 
 				LightWidget *lw = dynamic_cast<LightWidget*>(w);
-				if (lw) {
+				if (lw && lw->visible) {
 					Vec p1 = lw->getRelativeOffset(Vec(), this);
 					Vec p = getAbsoluteOffset(Vec()).neg();
 					p = p.plus(p1);
