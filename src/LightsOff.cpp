@@ -32,7 +32,7 @@
 
 
 #include "ModularFungi.hpp"
-
+#include <typeinfo>
 
 struct LightsOffModule : Module {
 	enum ParamIds {
@@ -76,8 +76,9 @@ struct LightsOffContainer : widget::Widget {
 			nvgRect(args.vg, 0, 0, box.size.x, box.size.y);
 			nvgFillColor(args.vg, nvgRGBA(0x00, 0x00, 0x00, (char)(255.f * module->params[LightsOffModule::PARAM_DIM].getValue())));
 			nvgFill(args.vg);
-
-			// Draw lights
+			
+			const std::string scopename="ScopeDisplay";
+			// Draw lights and Fundamental Scope Displays
 			Rect viewPort = getViewport(box);
 			std::queue<Widget*> q;
 			q.push(APP->scene->rack->moduleContainer);
@@ -86,18 +87,31 @@ struct LightsOffContainer : widget::Widget {
 				q.pop();
 
 				LightWidget *lw = dynamic_cast<LightWidget*>(w);
-				if (lw) {
-					Vec p1 = lw->getRelativeOffset(Vec(), this);
+				Widget* widgetToDraw = lw;
+				if (!lw)
+				{
+					// Wasn't a LightWidget, so let's make a pretty hacky check if it is the ScopeDisplay from
+					// Fundamental Scope
+					
+					std::string widgetname = typeid(*w).name();
+					
+					if (widgetname.find(scopename)!=std::string::npos)
+					{
+						widgetToDraw = w;
+					}
+				}
+				if (widgetToDraw) {
+					Vec p1 = widgetToDraw->getRelativeOffset(Vec(), this);
 					Vec p = getAbsoluteOffset(Vec()).neg();
 					p = p.plus(p1);
 					p = p.div(APP->scene->rackScroll->zoomWidget->zoom);
 
 					// Draw only if currently visible
-					if (viewPort.isIntersecting(Rect(p, lw->box.size))) {
+					if (viewPort.isIntersecting(Rect(p, widgetToDraw->box.size))) {
 						nvgSave(args.vg);
 						nvgResetScissor(args.vg);
 						nvgTranslate(args.vg, p.x, p.y);
-						lw->draw(args);
+						widgetToDraw->draw(args);
 						nvgRestore(args.vg);
 					}
 				}
@@ -106,7 +120,7 @@ struct LightsOffContainer : widget::Widget {
 					q.push(w1);
 				}
 			}
-
+			
 			// Draw cable plugs
 			for (widget::Widget *w : APP->scene->rack->cableContainer->children) {
 				CableWidget *cw = dynamic_cast<CableWidget*>(w);
