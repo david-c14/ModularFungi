@@ -67,7 +67,12 @@ static LightsOffModule *lightsOffSingleton = NULL;
 
 struct LightsOffContainer : widget::Widget {
 	LightsOffModule *module;
-
+	std::vector<std::string> excludeClassNames;
+	LightsOffContainer()
+	{
+		excludeClassNames.push_back("ScopeDisplay");
+		excludeClassNames.push_back("AnalyzerDisplay");
+	}
 	void draw(const DrawArgs& args) override {
 		if (module && module->isActive()) {
 			// Dim layer
@@ -77,9 +82,7 @@ struct LightsOffContainer : widget::Widget {
 			nvgFillColor(args.vg, nvgRGBA(0x00, 0x00, 0x00, (char)(255.f * module->params[LightsOffModule::PARAM_DIM].getValue())));
 			nvgFill(args.vg);
 			
-			const std::string scopename="ScopeDisplay";
-			const std::string analyzername="AnalyzerDisplay";
-			// Draw lights, Fundamental Scope displays and BogAudio analyzer displays
+			// Draw lights, and some analyzer displays
 			Rect viewPort = getViewport(box);
 			std::queue<Widget*> q;
 			q.push(APP->scene->rack->moduleContainer);
@@ -91,15 +94,17 @@ struct LightsOffContainer : widget::Widget {
 				Widget* widgetToDraw = lw;
 				if (!lw)
 				{
-					// Wasn't a LightWidget, so let's make a pretty hacky check if it is the ScopeDisplay from
-					// Fundamental Scope or BogAudio analyzer display
-					
+					// Wasn't a LightWidget, so do a typeid name check, to allow
+					// handling some external widget classes like Fundamental Scope's ScopeDisplay
+					// and BogAudio's AnalyzerDisplay
 					std::string widgetname = typeid(*w).name();
-					
-					if (widgetname.find(scopename)!=std::string::npos ||
-						widgetname.find(analyzername)!=std::string::npos)
+					for(const auto& e : excludeClassNames)
 					{
-						widgetToDraw = w;
+						if (widgetname.find(e)!=std::string::npos)
+						{
+							widgetToDraw = w;
+							break;
+						}
 					}
 				}
 				if (widgetToDraw) {
