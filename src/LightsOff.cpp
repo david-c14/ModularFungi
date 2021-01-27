@@ -79,7 +79,7 @@ struct LightsOffContainer : widget::Widget {
 			
 			const std::string scopename="ScopeDisplay";
 			const std::string analyzername="AnalyzerDisplay";
-			// Draw lights and Fundamental Scope Displays
+			// Draw lights, Fundamental Scope displays and BogAudio analyzer displays
 			Rect viewPort = getViewport(box);
 			std::queue<Widget*> q;
 			q.push(APP->scene->rack->moduleContainer);
@@ -92,7 +92,7 @@ struct LightsOffContainer : widget::Widget {
 				if (!lw)
 				{
 					// Wasn't a LightWidget, so let's make a pretty hacky check if it is the ScopeDisplay from
-					// Fundamental Scope
+					// Fundamental Scope or BogAudio analyzer display
 					
 					std::string widgetname = typeid(*w).name();
 					
