@@ -78,6 +78,7 @@ struct LightsOffContainer : widget::Widget {
 			nvgFill(args.vg);
 			
 			const std::string scopename="ScopeDisplay";
+			const std::string analyzername="AnalyzerDisplay";
 			// Draw lights and Fundamental Scope Displays
 			Rect viewPort = getViewport(box);
 			std::queue<Widget*> q;
@@ -95,7 +96,8 @@ struct LightsOffContainer : widget::Widget {
 					
 					std::string widgetname = typeid(*w).name();
 					
-					if (widgetname.find(scopename)!=std::string::npos)
+					if (widgetname.find(scopename)!=std::string::npos ||
+						widgetname.find(analyzername)!=std::string::npos)
 					{
 						widgetToDraw = w;
 					}
