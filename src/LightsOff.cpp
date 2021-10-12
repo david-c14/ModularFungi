@@ -32,7 +32,8 @@
 
 
 #include "ModularFungi.hpp"
-
+#include <typeinfo>
+#include <chrono>
 
 struct LightsOffModule : Module {
 	enum ParamIds {
@@ -51,7 +52,7 @@ struct LightsOffModule : Module {
 	};
 
 	bool active = false;
-
+	bool analyzersExcluded = false;
 	LightsOffModule() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 		configParam(PARAM_DIM, 0.0f, 1.0f, 0.8f, "Dim", "%", 0.f, 100.f);
@@ -67,17 +68,25 @@ static LightsOffModule *lightsOffSingleton = NULL;
 
 struct LightsOffContainer : widget::Widget {
 	LightsOffModule *module;
-
+	std::vector<std::string> excludeClassNames;
+	
+	LightsOffContainer()
+	{
+		excludeClassNames.push_back("ScopeDisplay");
+		excludeClassNames.push_back("AnalyzerDisplay");
+	}
+	
 	void draw(const DrawArgs& args) override {
 		if (module && module->isActive()) {
+			
 			// Dim layer
 			box = parent->box.zeroPos();
 			nvgBeginPath(args.vg);
 			nvgRect(args.vg, 0, 0, box.size.x, box.size.y);
 			nvgFillColor(args.vg, nvgRGBA(0x00, 0x00, 0x00, (char)(255.f * module->params[LightsOffModule::PARAM_DIM].getValue())));
 			nvgFill(args.vg);
-
-			// Draw lights
+			
+			// Draw lights, and some analyzer displays
 			Rect viewPort = getViewport(box);
 			std::queue<Widget*> q;
 			q.push(APP->scene->rack->moduleContainer);
@@ -86,18 +95,36 @@ struct LightsOffContainer : widget::Widget {
 				q.pop();
 
 				LightWidget *lw = dynamic_cast<LightWidget*>(w);
-				if (lw) {
-					Vec p1 = lw->getRelativeOffset(Vec(), this);
+				Widget* widgetToDraw = lw;
+				
+				if (!lw && module->analyzersExcluded)
+				{
+					// Wasn't a LightWidget, so do a typeid name check, to allow
+					// handling some external widget classes like Fundamental Scope's ScopeDisplay
+					// and BogAudio's AnalyzerDisplay
+					std::string widgetname = typeid(*w).name();
+					for(const auto& e : excludeClassNames)
+					{
+						if (widgetname.find(e)!=std::string::npos)
+						{
+							widgetToDraw = w;
+							break;
+						}
+					}
+				}
+				
+				if (widgetToDraw) {
+					Vec p1 = widgetToDraw->getRelativeOffset(Vec(), this);
 					Vec p = getAbsoluteOffset(Vec()).neg();
 					p = p.plus(p1);
 					p = p.div(APP->scene->rackScroll->zoomWidget->zoom);
 
 					// Draw only if currently visible
-					if (viewPort.isIntersecting(Rect(p, lw->box.size))) {
+					if (viewPort.isIntersecting(Rect(p, widgetToDraw->box.size))) {
 						nvgSave(args.vg);
 						nvgResetScissor(args.vg);
 						nvgTranslate(args.vg, p.x, p.y);
-						lw->draw(args);
+						widgetToDraw->draw(args);
 						nvgRestore(args.vg);
 					}
 				}
@@ -106,13 +133,14 @@ struct LightsOffContainer : widget::Widget {
 					q.push(w1);
 				}
 			}
-
+			
 			// Draw cable plugs
 			for (widget::Widget *w : APP->scene->rack->cableContainer->children) {
 				CableWidget *cw = dynamic_cast<CableWidget*>(w);
 				assert(cw);
 				cw->drawPlugs(args);
 			}
+			
 		}
 		Widget::draw(args);
 	}
@@ -220,6 +248,17 @@ struct LightsOffWidget : ModuleWidget {
 			}
 		};
 
+		struct AnalyzersExcludedItem : MenuItem {
+			LightsOffModule *module;
+			void onAction(const event::Action &e) override {
+				module->analyzersExcluded ^= true;
+			}
+			void step() override {
+				rightText = module->analyzersExcluded ? "✔" : "";
+				MenuItem::step();
+			}
+		};
+
 		struct DimSlider : ui::Slider {
 			DimSlider(LightsOffModule *module) {
 				box.size.x = 180.0f;
@@ -230,6 +269,7 @@ struct LightsOffWidget : ModuleWidget {
 		menu->addChild(new MenuSeparator());
 		menu->addChild(construct<MenuLabel>(&MenuLabel::text, "Hotkey " RACK_MOD_CTRL_NAME "+Alt+X"));
 		menu->addChild(construct<ActiveItem>(&MenuItem::text, "Active", &ActiveItem::module, module));
+		menu->addChild(construct<AnalyzersExcludedItem>(&MenuItem::text, "Exclude some analyzer displays (Fundamental Scope/BogAudio Analyzer)", &AnalyzersExcludedItem::module, module));
 		menu->addChild(new DimSlider(module));
 	}
 };
