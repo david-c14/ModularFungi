@@ -6,18 +6,18 @@ using namespace rack;
 extern Plugin *pluginInstance;
 
 // Forward-declare each Model, defined in each module source file
-extern Model *modelBlank_1HP;
-extern Model *modelBlank_3HP;
-extern Model *modelBlank_4HP;
-extern Model *modelBlank_6HP;
-extern Model *modelBlank_10HP;
-extern Model *modelBlank_12HP;
-extern Model *modelBlank_16HP;
-extern Model *modelBlank_20HP;
-extern Model *modelBlank_26HP;
-extern Model *modelBlank_32HP;
-extern Model *modelColor_12HP;
-extern Model *modelLightsOff;
+// extern Model *modelBlank_1HP;
+// extern Model *modelBlank_3HP;
+// extern Model *modelBlank_4HP;
+// extern Model *modelBlank_6HP;
+// extern Model *modelBlank_10HP;
+// extern Model *modelBlank_12HP;
+// extern Model *modelBlank_16HP;
+// extern Model *modelBlank_20HP;
+// extern Model *modelBlank_26HP;
+// extern Model *modelBlank_32HP;
+// extern Model *modelColor_12HP;
+// extern Model *modelLightsOff;
 extern Model *modelOpsylloscope;
 //extern Model *modelME;
 

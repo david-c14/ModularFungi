@@ -302,9 +302,9 @@ struct Scope : Module {
 
 /// interface to be implemented by module widget for popout window
 struct IPopupWindowOwner {
-	virtual void IPopupWindowOwner_showWindow() = 0;
+	virtual void IPopupWindowOwner_showWindow();
 
-	virtual void IPopupWindowOwner_hideWindow() = 0;
+	virtual void IPopupWindowOwner_hideWindow();
 };
 
 /// Placed on right of module, allow resizing of parent widget via drag
@@ -324,7 +324,7 @@ struct ResizeTab : OpaqueWidget {
 				oldBounds = modWidget->box;
 
 			// mousedown position
-			position = APP->scene->rack->mousePos;
+			position = APP->scene->rack->getMousePos();
 		}
 	}
 
@@ -334,7 +334,7 @@ struct ResizeTab : OpaqueWidget {
 		if (modWidget == nullptr)
 			return;
 
-		auto newPosition = APP->scene->rack->mousePos;
+		auto newPosition = APP->scene->rack->getMousePos();
 		auto xChange = newPosition.x - position.x;
 		auto newRect = oldBounds;
 		auto oldRect = modWidget->box;
@@ -900,8 +900,9 @@ struct ScopeWidget : ModuleWidget, IPopupWindowOwner {
 	ResizeTab rt;
 	ScopeDisplay *display;
 	GLFWwindow *_window = nullptr;  // Handle to the popup window.
-	NVGcontext *_vg = nullptr;        // For painting into the popup window.
+	NVGcontext *_vg = nullptr;      // For painting into the popup window.
 	std::shared_ptr<Font> _font;    //
+	Widget *panel;
 
 	ScopeWidget(Scope *module) {
 		setModule(module);
